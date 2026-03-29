@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blog-writer-blog"
+version = "1.0.0"
+description = "Standalone blog-only writing and Blogger publishing app"
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4>=4.12",
+    "click>=8.1",
+    "fastapi>=0.111",
+    "feedparser>=6.0",
+    "google-api-python-client>=2.0",
+    "google-auth-httplib2>=0.2",
+    "google-auth-oauthlib>=1.2",
+    "markdown>=3.6",
+    "python-dotenv>=1.0",
+    "requests>=2.31",
+    "rich>=13.0",
+    "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+llm = [
+    "anthropic>=0.34",
+    "google-generativeai>=0.8",
+]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+bw = "blogwriter.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["blogwriter*", "bots*", "dashboard*"]

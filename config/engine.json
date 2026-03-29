@@ -1,0 +1,28 @@
+{
+  "writing": {
+    "provider": "openclaw",
+    "options": {
+      "openclaw": {
+        "agent_name": "blog-writer",
+        "timeout": 300
+      },
+      "claude": {
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "model": "claude-3-5-sonnet-latest",
+        "max_tokens": 4096
+      },
+      "gemini": {
+        "api_key_env": "GEMINI_API_KEY",
+        "model": "gemini-2.5-flash",
+        "max_tokens": 4096,
+        "temperature": 0.7
+      }
+    }
+  },
+  "publishing": {
+    "blogger": {
+      "enabled": true,
+      "blog_id_env": "BLOG_MAIN_ID"
+    }
+  }
+}

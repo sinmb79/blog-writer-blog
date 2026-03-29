@@ -1,0 +1,10 @@
+{
+  "blogs": [
+    {
+      "id": "main",
+      "blog_id": "${BLOG_MAIN_ID}",
+      "name": "Blog Writer Blog",
+      "active": true
+    }
+  ]
+}
