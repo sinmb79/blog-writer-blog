@@ -92,21 +92,19 @@ class OpenClawWriter(BaseWriter):
         self.timeout = cfg.get("timeout", 300)
 
     def write(self, prompt: str, system: str = "") -> str:
-        # system을 [SYSTEM INSTRUCTION] 블록으로 명시적 분리
+        import uuid
+        # system + prompt을 하나로 합치되, 핵심 지시를 앞에 짧게 배치
         if system:
-            message = (
-                "[SYSTEM INSTRUCTION — 반드시 따라라]\n"
-                f"{system}\n"
-                "[END SYSTEM INSTRUCTION]\n\n"
-                "[USER REQUEST — 아래 요청에 대해 위 지시대로 즉시 출력하라]\n"
-                f"{prompt}"
-            )
+            message = f"{system}\n\n{prompt}"
         else:
             message = prompt
+        # 매 호출마다 새 세션을 사용하여 이전 대화 컨텍스트 오염 방지
+        session_id = f"write-{uuid.uuid4().hex[:8]}"
         try:
             cmd = [
                 self._CLI, "agent",
                 "--agent", self.agent_name,
+                "--session-id", session_id,
                 "--message", message,
                 "--json",
             ]

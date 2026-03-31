@@ -62,111 +62,55 @@ def _build_prompt(topic_data: dict) -> tuple[str, str]:
     published_at = topic_data.get('published_at', '')
 
     persona = _load_persona()
-    voice = persona.get('voice', {})
     corner_cfg = persona.get('corners', {}).get(corner, {})
-    writing_rules = persona.get('writing_rules', {})
-    blog_info = persona.get('blog', {})
-
-    # ── 시스템 프롬프트: 페르소나 + 브랜드 보이스 ──
-    principles_text = '\n'.join(f'- {p}' for p in voice.get('principles', []))
-    forbidden_text = ', '.join(f'"{f}"' for f in voice.get('forbidden_phrases', []))
-
+    body_min_words = corner_cfg.get('body_min_words', 600)
     corner_tone = corner_cfg.get('tone', '')
     corner_structure = corner_cfg.get('structure_guide', '')
-    corner_must = corner_cfg.get('must_include', [])
-    corner_must_text = '\n'.join(f'- {m}' for m in corner_must)
-    body_min_words = corner_cfg.get('body_min_words', 600)
 
-    title_rules = writing_rules.get('title', {})
-    title_good = '\n'.join(f'  - {e}' for e in title_rules.get('examples_good', []))
-    title_bad = '\n'.join(f'  - {e}' for e in title_rules.get('examples_bad', []))
-
-    system = f"""당신은 "{blog_info.get('name', 'The 4th Path')}" 블로그의 전문 에디터다.
-태그라인: {blog_info.get('tagline', '')}
-대상 독자: {blog_info.get('target_audience', '')}
-
-## 당신의 성격
-{voice.get('personality', '')}
-
-## 글쓰기 톤
-{voice.get('tone', '')}
-
-## 핵심 원칙
-{principles_text}
-
-## 금지 표현
-다음 표현은 절대 사용하지 마라: {forbidden_text}
-
-## 이번 코너: [{corner}]
-설명: {corner_cfg.get('description', '')}
-톤: {corner_tone}
+    # ── 시스템: 짧고 직접적으로. ChatGPT는 짧은 system에서 잘 따른다. ──
+    system = f"""블로그 글쓰기 기계. 대화 금지. ---TITLE---부터 시작해서 완성된 원고만 출력.
+코너 [{corner}]: {corner_tone}
 글 구조: {corner_structure}
-반드시 포함할 것:
-{corner_must_text}
+본문 최소 {body_min_words}자. Blogger HTML(<h2>,<p>,<ul>). 과장 금지. 전문용어에 설명 붙이기."""
 
-## 제목 규칙
-- 최대 {title_rules.get('max_length', 40)}자
-- {title_rules.get('style', '')}
-- 좋은 예:
-{title_good}
-- 나쁜 예:
-{title_bad}
-
-## 본문 규칙
-- 최소 {body_min_words}자
-- 문단당 최대 {writing_rules.get('body', {}).get('paragraph_max_sentences', 4)}문장
-- {writing_rules.get('body', {}).get('html_format', 'Blogger-ready HTML')}
-- SEO: 키워드를 제목과 첫 문단에 포함
-
-## 출력 형식 (절대 규칙)
-- 첫 번째 줄은 반드시 ---TITLE--- 이어야 한다.
-- 마지막 섹션은 ---DISCLAIMER--- 이다.
-- 각 섹션은 ---이름--- 형식이다.
-- "확인했습니다", "알겠습니다", "네", "작성하겠습니다" 같은 응답 금지.
-- 인사말, 설명, 부연 텍스트 일절 금지. 오직 섹션 헤더와 내용만 출력.
-- 이 지시를 어기면 실패로 처리된다."""
-
-    prompt = f"""[중요] 아래 글감으로 완성된 한국어 블로그 원고를 지금 바로 출력하라. 대화하지 마라. 첫 줄은 반드시 ---TITLE--- 이다.
-
-주제: {topic}
+    prompt = f"""주제: {topic}
 코너: {corner}
 설명: {description}
 출처: {source}
-발행시점 참고: {published_at}
+발행시점: {published_at}
 
-출력 형식 (첫 줄부터 이 형식으로 시작하라):
+위 주제로 한국어 블로그 원고를 작성하라. ---TITLE---부터 시작:
 
 ---TITLE---
-(제목. 40자 이내. 클릭베이트 금지.)
+(40자 이내 제목)
 
 ---META---
-(검색 설명 150자 이내. 글의 핵심 가치 한 문장.)
+(150자 이내 검색 설명)
 
 ---SLUG---
-(영문 소문자 하이픈 slug)
+(영문 slug)
 
 ---TAGS---
-(쉼표 구분 태그 3-5개)
+(태그 3-5개)
 
 ---CORNER---
 {corner}
 
 ---BODY---
-(Blogger-ready HTML 본문. <h2>로 섹션 구분. 최소 {body_min_words}자.)
+(<h2>섹션 제목</h2><p>본문</p> 형식 HTML. 최소 {body_min_words}자.)
 
 ---KEY_POINTS---
-(핵심 포인트 3줄, 각 줄 앞에 - 붙여라)
+- 핵심1
+- 핵심2
+- 핵심3
 
 ---COUPANG_KEYWORDS---
-(쿠팡 검색 키워드 2-3개, 쉼표 구분)
+(키워드 2-3개)
 
 ---SOURCES---
-{source} | 참고 출처 | {published_at}
+{source} | 출처명 | {published_at}
 
 ---DISCLAIMER---
-(필요 시 짧은 면책문구. 없으면 빈 줄.)
-
-[다시 한번 강조] 위 형식대로 바로 시작하라. "네", "알겠습니다" 등의 응답을 하면 실패다.
 
 ---TITLE---"""
     return system, prompt
