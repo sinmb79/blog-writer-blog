@@ -92,10 +92,26 @@ class OpenClawWriter(BaseWriter):
         self.timeout = cfg.get("timeout", 300)
 
     def write(self, prompt: str, system: str = "") -> str:
-        message = f"{system}\n\n{prompt}".strip() if system else prompt
+        # system을 [SYSTEM INSTRUCTION] 블록으로 명시적 분리
+        if system:
+            message = (
+                "[SYSTEM INSTRUCTION — 반드시 따라라]\n"
+                f"{system}\n"
+                "[END SYSTEM INSTRUCTION]\n\n"
+                "[USER REQUEST — 아래 요청에 대해 위 지시대로 즉시 출력하라]\n"
+                f"{prompt}"
+            )
+        else:
+            message = prompt
         try:
+            cmd = [
+                self._CLI, "agent",
+                "--agent", self.agent_name,
+                "--message", message,
+                "--json",
+            ]
             result = subprocess.run(
-                [self._CLI, "agent", "--agent", self.agent_name, "--message", message, "--json"],
+                cmd,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
