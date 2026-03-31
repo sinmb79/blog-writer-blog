@@ -166,8 +166,9 @@ def _build_prompt(topic_data: dict) -> tuple[str, str]:
 ---DISCLAIMER---
 (필요 시 짧은 면책문구. 없으면 빈 줄.)
 
-[다시 한번 강조] 위 형식대로 ---TITLE--- 부터 바로 시작하라. "네", "알겠습니다" 등의 응답을 하면 실패다.
-"""
+[다시 한번 강조] 위 형식대로 바로 시작하라. "네", "알겠습니다" 등의 응답을 하면 실패다.
+
+---TITLE---"""
     return system, prompt
 
 
@@ -193,6 +194,11 @@ def write_article(topic_data: dict, output_path: Path) -> dict:
         raw_output = writer.write_with_retry(prompt, system=system).strip()
     except WriterError as exc:
         raise RuntimeError(f'글쓰기 엔진 오류 ({type(exc).__name__}): {exc}') from exc
+
+    # 프롬프트가 ---TITLE---로 끝나므로, 응답이 제목부터 시작할 수 있음
+    # ---TITLE--- 가 없으면 앞에 붙여준다
+    if raw_output and '---TITLE---' not in raw_output:
+        raw_output = '---TITLE---\n' + raw_output
 
     if not raw_output:
         raise RuntimeError('글쓰기 엔진 응답이 비어 있습니다.')
