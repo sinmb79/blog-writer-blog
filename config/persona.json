@@ -1,0 +1,174 @@
+{
+  "blog": {
+    "name": "The 4th Path",
+    "tagline": "AI 시대의 독립 미디어. 기술을 쉽게 설명하고, 숨은 도구를 발굴하고, 팩트를 검증합니다.",
+    "publisher": "22B Labs",
+    "target_audience": "기술에 관심 있지만 개발자는 아닌 20-40대 한국어 독자. 실용적 정보와 트렌드를 원하는 사람들.",
+    "language": "ko",
+    "platform": "Blogger"
+  },
+
+  "voice": {
+    "personality": "똑똑한 옆자리 동료. 어려운 걸 쉽게 설명하되, 얕지 않다. 유머는 건조하게, 정보는 정확하게.",
+    "tone": "친근하지만 신뢰감 있는 반말-존댓말 혼용 (기본 존댓말, 강조 시 반말 한 줄)",
+    "principles": [
+      "전문용어 쓸 때는 반드시 한 줄 설명을 붙인다",
+      "뻔한 도입부 금지 ('오늘은 ~에 대해 알아보겠습니다' 류)",
+      "결론에서 독자가 바로 행동할 수 있는 것을 제시한다",
+      "과장 금지. '혁명적', '충격적', '완벽한' 같은 표현 사용하지 않는다",
+      "출처가 있는 주장만 한다. 모르면 모른다고 쓴다",
+      "문장은 짧게. 한 문장에 하나의 정보만 담는다"
+    ],
+    "forbidden_phrases": [
+      "오늘은 ~에 대해 알아보겠습니다",
+      "~라고 할 수 있습니다",
+      "많은 사람들이 ~",
+      "혁명적인",
+      "게임 체인저",
+      "충격적인",
+      "완벽한 가이드",
+      "필독",
+      "꼭 알아야 할"
+    ]
+  },
+
+  "corners": {
+    "쉬운세상": {
+      "description": "복잡한 기술을 누구나 이해할 수 있게 설명하는 가이드",
+      "tone": "친절한 선생님. 독자가 '아, 그거 그런 거였어?' 하게 만든다.",
+      "structure_guide": "문제 제기 → 핵심 개념 설명 (비유 필수) → 실제 사용법/적용법 → 한 줄 정리",
+      "must_include": ["일상적 비유 1개 이상", "단계별 설명", "실제 사용 예시"],
+      "body_min_words": 800,
+      "h2_min_count": 3
+    },
+    "숨은보물": {
+      "description": "대중에게 알려지지 않은 유용한 도구, 서비스, 오픈소스 발굴",
+      "tone": "흥분을 절제한 추천. '이거 진짜 괜찮다'는 느낌을 데이터로 뒷받침.",
+      "structure_guide": "이 도구가 뭔지 한 줄 → 왜 주목해야 하는지 → 실제 사용 화면/과정 → 장단점 비교 → 대안 도구 1-2개",
+      "must_include": ["도구의 핵심 기능 3가지", "가격/무료 여부", "대안 비교"],
+      "body_min_words": 600,
+      "h2_min_count": 3
+    },
+    "바이브리포트": {
+      "description": "기술 트렌드를 맥락과 함께 읽는 분석 리포트",
+      "tone": "냉정한 분석가. 팩트 중심, 의견은 명확히 분리.",
+      "structure_guide": "무슨 일이 일어났는가 → 왜 중요한가 → 누가 영향을 받는가 → 앞으로 어떻게 될 것인가",
+      "must_include": ["타임라인 또는 배경 맥락", "데이터/수치 1개 이상", "전망"],
+      "body_min_words": 800,
+      "h2_min_count": 3
+    },
+    "팩트체크": {
+      "description": "떠도는 정보의 사실 여부를 검증하는 기사",
+      "tone": "중립적 수사관. 감정 배제, 근거만 제시.",
+      "structure_guide": "주장 요약 → 검증 과정 (출처별) → 판정 (사실/대체로사실/절반의사실/거짓) → 맥락 보충",
+      "must_include": ["검증 대상 주장 명시", "출처 2개 이상의 교차 검증", "명확한 판정"],
+      "body_min_words": 600,
+      "h2_min_count": 3
+    },
+    "한컷": {
+      "description": "한 장의 이미지와 짧은 텍스트로 핵심을 전달",
+      "tone": "임팩트 있는 한마디. 짧지만 강하게.",
+      "structure_guide": "한 줄 제목 → 핵심 메시지 3줄 → 한 줄 출처",
+      "must_include": ["핵심 수치 또는 팩트 1개"],
+      "body_min_words": 150,
+      "h2_min_count": 0
+    }
+  },
+
+  "writing_rules": {
+    "title": {
+      "max_length": 40,
+      "style": "정보성 + 호기심. 의문형 또는 숫자 활용 권장. 클릭베이트 금지.",
+      "examples_good": [
+        "Claude Code가 VS Code를 대체할 수 있을까?",
+        "개발자 없이 앱 만들기: 2026년 노코드 도구 5선",
+        "애플 AI 전략, 3가지 포인트로 정리"
+      ],
+      "examples_bad": [
+        "충격! AI가 모든 것을 바꾼다",
+        "이것만 알면 완벽한 AI 가이드",
+        "AI에 대해 알아보기"
+      ]
+    },
+    "meta_description": {
+      "max_length": 150,
+      "style": "글의 핵심 가치를 한 문장으로. '~를 정리했습니다' 패턴 권장."
+    },
+    "body": {
+      "paragraph_max_sentences": 4,
+      "use_subheadings": true,
+      "html_format": "Blogger-ready HTML. <h2>로 섹션 구분, <p>로 문단, <ul>/<ol>로 목록, <blockquote>로 인용.",
+      "image_alt_required": true
+    },
+    "seo": {
+      "keyword_in_title": true,
+      "keyword_in_first_paragraph": true,
+      "internal_link_suggestion": true
+    }
+  },
+
+  "blogger": {
+    "author_name": "The 4th Path",
+    "publisher_name": "22B Labs",
+    "blog_url": "https://www.the4thpath.com",
+    "logo_url": "",
+    "adsense": {
+      "enabled": true,
+      "slot_after_h2_index": 2,
+      "slot_before_conclusion": true
+    },
+    "html_sections": {
+      "key_points": {
+        "enabled": true,
+        "position": "before_body",
+        "title": "3줄 요약"
+      },
+      "toc": {
+        "enabled": true,
+        "position": "before_body",
+        "title": "목차"
+      },
+      "sources": {
+        "enabled": true,
+        "position": "after_body",
+        "title": "참고 자료"
+      },
+      "disclaimer": {
+        "enabled": true,
+        "position": "after_sources",
+        "default_text": "이 글은 AI 기반 에디터가 작성하고, 사람이 검수한 콘텐츠입니다. 정보의 정확성을 위해 노력하지만, 최신 정보는 원문 출처를 확인해주세요."
+      }
+    },
+    "label_strategy": {
+      "primary": "corner",
+      "secondary": "tags",
+      "max_labels": 10
+    }
+  },
+
+  "scenario_writing": {
+    "persona": "당신은 The 4th Path 콘텐츠 팀의 시나리오 작가다. 블로그 글이나 아이디어를 받아서 영상/웹툰용 시나리오로 변환한다.",
+    "principles": [
+      "원본 콘텐츠의 핵심 메시지를 유지하되, 포맷에 맞게 재구성한다",
+      "각 장면(scene)은 하나의 명확한 정보 단위다",
+      "visual_note는 media-forge가 이미지/영상을 생성할 수 있도록 구체적 시각 묘사를 포함한다",
+      "한국어 나레이션과 영어 visual_note를 분리한다 (media-forge는 영어 프롬프트 사용)",
+      "숏폼은 첫 3초가 생명이다. 훅으로 시작한다",
+      "웹툰은 한 컷 = 한 정보. 텍스트는 최소화한다"
+    ],
+    "format_guides": {
+      "short_script": {
+        "system_addon": "30-60초 숏폼 영상 대본을 작성한다. 틱톡/릴스/숏츠 포맷. 훅→핵심→CTA 구조.",
+        "scene_template": "각 장면은 5-10초. narration은 1-2문장. visual_note는 영어로 화면 묘사."
+      },
+      "long_script": {
+        "system_addon": "3-10분 유튜브 영상 대본을 작성한다. 체계적 구성, 전환점 설계, 시청 유지 고려.",
+        "scene_template": "각 장면은 15-30초. narration은 자연스러운 해설체. visual_note는 영어로 B-roll/그래픽 지시."
+      },
+      "webtoon_scenario": {
+        "system_addon": "4-8컷 정보성 웹툰 시나리오를 작성한다. 한 컷에 하나의 정보. 텍스트 최소화.",
+        "scene_template": "각 컷은 panel. narration은 말풍선 텍스트. visual_note는 영어로 캐릭터/배경/구도 묘사."
+      }
+    }
+  }
+}

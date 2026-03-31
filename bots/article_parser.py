@@ -4,7 +4,15 @@ OpenClaw blog-writer 출력(output_format.md 형식)을 파싱하여
 발행봇이 사용할 수 있는 dict로 변환.
 """
 import re
+import sys
+from pathlib import Path
 from typing import Optional
+
+# 직접 실행(python bots/article_parser.py) 시에도 패키지 import 가능하도록
+if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from bots.article_schema import REQUIRED_SECTIONS
 
 
 def parse_output(raw_output: str) -> Optional[dict]:
@@ -12,14 +20,15 @@ def parse_output(raw_output: str) -> Optional[dict]:
     OpenClaw 출력 문자열을 파싱.
     Returns: dict 또는 None (파싱 실패 시)
     """
+    raw_output = raw_output.replace('\r\n', '\n').strip()
     sections = {}
-    pattern = re.compile(r'---(\w+)---\n(.*?)(?=---\w+---|$)', re.DOTALL)
+    pattern = re.compile(r'---(\w+)---\s*\n(.*?)(?=---\w+---|$)', re.DOTALL)
     matches = pattern.findall(raw_output)
 
     for key, value in matches:
         sections[key.strip()] = value.strip()
 
-    if not sections.get('TITLE') or not sections.get('BODY'):
+    if not all(sections.get(s) for s in REQUIRED_SECTIONS):
         return None
 
     # 출처 파싱

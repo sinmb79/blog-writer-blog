@@ -3,7 +3,7 @@
     "provider": "openclaw",
     "options": {
       "openclaw": {
-        "agent_name": "blog-writer",
+        "agent_name": "main",
         "timeout": 300
       },
       "claude": {

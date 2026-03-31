@@ -115,9 +115,21 @@ def check_safety(article: dict, safety_cfg: dict) -> tuple[bool, str]:
     return False, ''
 
 
+# ─── Persona 로드 ────────────────────────────────────
+
+def _load_persona() -> dict:
+    persona_path = CONFIG_DIR / "persona.json"
+    if not persona_path.exists():
+        return {}
+    try:
+        return json.loads(persona_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
 # ─── HTML 변환 ─────────────────────────────────────────
 
-def markdown_to_html(md_text: str) -> str:
+def markdown_to_html(md_text: str) -> tuple[str, str]:
     """마크다운 → HTML 변환 (목차 extension 포함)"""
     md = markdown.Markdown(
         extensions=['toc', 'tables', 'fenced_code', 'attr_list'],
@@ -133,32 +145,78 @@ def markdown_to_html(md_text: str) -> str:
     return html, toc
 
 
+def _is_html(text: str) -> bool:
+    """텍스트가 이미 HTML인지 판별 (writer_bot은 HTML로 출력)"""
+    return bool(re.search(r'<(h[1-6]|p|div|ul|ol|blockquote)[\s>]', text, re.IGNORECASE))
+
+
+def _extract_toc_from_html(html: str) -> str:
+    """이미 HTML인 본문에서 h2 태그 기반 목차를 생성"""
+    soup = BeautifulSoup(html, 'html.parser')
+    h2_tags = soup.find_all('h2')
+    if not h2_tags:
+        return ''
+
+    toc_items = []
+    for i, h2 in enumerate(h2_tags):
+        anchor = f'section-{i}'
+        h2['id'] = anchor
+        text = h2.get_text(strip=True)
+        toc_items.append(f'<li><a href="#{anchor}">{text}</a></li>')
+
+    toc_html = f'<ul>{"".join(toc_items)}</ul>'
+    return toc_html
+
+
+def prepare_body_html(article: dict) -> tuple[str, str]:
+    """
+    article body를 Blogger용 HTML로 변환.
+    writer_bot이 이미 HTML로 출력하면 그대로 사용, 마크다운이면 변환.
+    Returns: (body_html, toc_html)
+    """
+    body = article.get('body', '')
+    if _is_html(body):
+        toc_html = _extract_toc_from_html(body)
+        return body, toc_html
+    else:
+        return markdown_to_html(body)
+
+
 def insert_adsense_placeholders(html: str) -> str:
     """두 번째 H2 뒤와 결론 섹션 앞에 AdSense 플레이스홀더 삽입"""
+    persona = _load_persona()
+    adsense_cfg = persona.get('blogger', {}).get('adsense', {})
+    if not adsense_cfg.get('enabled', True):
+        return html
+
     AD_SLOT_1 = '\n<!-- AD_SLOT_1 -->\n'
     AD_SLOT_2 = '\n<!-- AD_SLOT_2 -->\n'
 
-    soup = BeautifulSoup(html, 'lxml')
+    soup = BeautifulSoup(html, 'html.parser')
     h2_tags = soup.find_all('h2')
 
-    # 두 번째 H2 뒤에 AD_SLOT_1 삽입
-    if len(h2_tags) >= 2:
-        second_h2 = h2_tags[1]
+    slot_index = adsense_cfg.get('slot_after_h2_index', 2)
+    if len(h2_tags) >= slot_index:
+        target_h2 = h2_tags[slot_index - 1]
         ad_tag = BeautifulSoup(AD_SLOT_1, 'html.parser')
-        second_h2.insert_after(ad_tag)
+        target_h2.insert_after(ad_tag)
 
-    # 결론 H2 앞에 AD_SLOT_2 삽입
-    for h2 in soup.find_all('h2'):
-        if any(kw in h2.get_text() for kw in ['결론', '마무리', '정리', '요약', 'conclusion']):
-            ad_tag2 = BeautifulSoup(AD_SLOT_2, 'html.parser')
-            h2.insert_before(ad_tag2)
-            break
+    if adsense_cfg.get('slot_before_conclusion', True):
+        for h2 in soup.find_all('h2'):
+            if any(kw in h2.get_text() for kw in ['결론', '마무리', '정리', '요약', 'conclusion']):
+                ad_tag2 = BeautifulSoup(AD_SLOT_2, 'html.parser')
+                h2.insert_before(ad_tag2)
+                break
 
     return str(soup)
 
 
-def build_json_ld(article: dict, blog_url: str = '') -> str:
-    """Schema.org Article JSON-LD 생성"""
+def build_json_ld(article: dict) -> str:
+    """Schema.org Article JSON-LD 생성 (persona.json 기반)"""
+    persona = _load_persona()
+    blogger_cfg = persona.get('blogger', {})
+    blog_url = blogger_cfg.get('blog_url', '')
+
     schema = {
         "@context": "https://schema.org",
         "@type": "Article",
@@ -167,53 +225,189 @@ def build_json_ld(article: dict, blog_url: str = '') -> str:
         "datePublished": datetime.now(timezone.utc).isoformat(),
         "dateModified": datetime.now(timezone.utc).isoformat(),
         "author": {
-            "@type": "Person",
-            "name": "테크인사이더"
+            "@type": "Organization",
+            "name": blogger_cfg.get('author_name', 'The 4th Path')
         },
         "publisher": {
             "@type": "Organization",
-            "name": "테크인사이더",
+            "name": blogger_cfg.get('publisher_name', '22B Labs'),
             "logo": {
                 "@type": "ImageObject",
-                "url": ""
+                "url": blogger_cfg.get('logo_url', '')
             }
         },
         "mainEntityOfPage": {
             "@type": "WebPage",
             "@id": blog_url
-        }
+        },
+        "inLanguage": "ko",
+        "keywords": ', '.join(article.get('tags', [])),
+        "articleSection": article.get('corner', ''),
     }
     return f'<script type="application/ld+json">\n{json.dumps(schema, ensure_ascii=False, indent=2)}\n</script>'
 
 
+def _build_key_points_html(article: dict) -> str:
+    """핵심 포인트 3줄 요약 섹션 HTML"""
+    key_points = article.get('key_points', [])
+    if not key_points:
+        return ''
+
+    persona = _load_persona()
+    section_cfg = persona.get('blogger', {}).get('html_sections', {}).get('key_points', {})
+    if not section_cfg.get('enabled', True):
+        return ''
+
+    title = section_cfg.get('title', '3줄 요약')
+    items = ''.join(f'<li>{point}</li>' for point in key_points)
+    return (
+        f'<div class="key-points" '
+        f'style="background:#f8f9fa;border-left:4px solid #c8a84e;'
+        f'padding:16px 20px;margin:20px 0;border-radius:4px;">\n'
+        f'<strong>{title}</strong>\n'
+        f'<ul style="margin:8px 0 0 0;padding-left:20px;">{items}</ul>\n'
+        f'</div>'
+    )
+
+
+def _build_sources_html(article: dict) -> str:
+    """출처 섹션 HTML"""
+    sources = article.get('sources', [])
+    if not sources:
+        return ''
+
+    persona = _load_persona()
+    section_cfg = persona.get('blogger', {}).get('html_sections', {}).get('sources', {})
+    if not section_cfg.get('enabled', True):
+        return ''
+
+    title = section_cfg.get('title', '참고 자료')
+    items = []
+    for src in sources:
+        url = src.get('url', '')
+        src_title = src.get('title', url)
+        date = src.get('date', '')
+        if url:
+            link = f'<a href="{url}" target="_blank" rel="noopener noreferrer">{src_title}</a>'
+        else:
+            link = src_title
+        date_str = f' ({date})' if date else ''
+        items.append(f'<li>{link}{date_str}</li>')
+
+    return (
+        f'<div class="sources" style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;">\n'
+        f'<h3 style="font-size:1em;color:#666;">{title}</h3>\n'
+        f'<ul style="font-size:0.9em;color:#888;">{"".join(items)}</ul>\n'
+        f'</div>'
+    )
+
+
+def _build_disclaimer_html(article: dict) -> str:
+    """면책 문구 HTML"""
+    persona = _load_persona()
+    section_cfg = persona.get('blogger', {}).get('html_sections', {}).get('disclaimer', {})
+    if not section_cfg.get('enabled', True):
+        return ''
+
+    text = article.get('disclaimer', '').strip()
+    if not text:
+        text = section_cfg.get('default_text', '')
+    if not text:
+        return ''
+
+    return (
+        f'<div class="disclaimer" '
+        f'style="margin-top:24px;padding:12px 16px;background:#fafafa;'
+        f'border-radius:4px;font-size:0.85em;color:#999;line-height:1.6;">\n'
+        f'{text}\n'
+        f'</div>'
+    )
+
+
 def build_full_html(article: dict, body_html: str, toc_html: str) -> str:
-    """최종 HTML 조합: JSON-LD + 목차 + 본문 + 면책 문구"""
+    """
+    최종 Blogger 발행용 HTML 조합:
+    JSON-LD → 3줄 요약 → 목차 → 본문(+AdSense) → 출처 → 면책 문구
+    """
+    persona = _load_persona()
+    sections_cfg = persona.get('blogger', {}).get('html_sections', {})
+
     json_ld = build_json_ld(article)
-    disclaimer = article.get('disclaimer', '')
+    key_points_html = _build_key_points_html(article)
+    sources_html = _build_sources_html(article)
+    disclaimer_html = _build_disclaimer_html(article)
+
+    body_html = insert_adsense_placeholders(body_html)
 
     html_parts = [json_ld]
-    if toc_html:
-        html_parts.append(f'<div class="toc-wrapper">{toc_html}</div>')
-    html_parts.append(body_html)
-    if disclaimer:
-        html_parts.append(f'<hr/><p class="disclaimer"><small>{disclaimer}</small></p>')
 
-    return '\n'.join(html_parts)
+    # 3줄 요약 (본문 전)
+    if key_points_html:
+        html_parts.append(key_points_html)
+
+    # 목차 (본문 전)
+    toc_cfg = sections_cfg.get('toc', {})
+    if toc_html and toc_cfg.get('enabled', True):
+        toc_title = toc_cfg.get('title', '목차')
+        html_parts.append(
+            f'<details class="toc-wrapper" style="margin:20px 0;padding:12px 16px;'
+            f'background:#fafafa;border-radius:4px;">\n'
+            f'<summary style="cursor:pointer;font-weight:bold;">{toc_title}</summary>\n'
+            f'{toc_html}\n'
+            f'</details>'
+        )
+
+    # 본문
+    html_parts.append(body_html)
+
+    # 출처 (본문 후)
+    if sources_html:
+        html_parts.append(sources_html)
+
+    # 면책 문구
+    if disclaimer_html:
+        html_parts.append(disclaimer_html)
+
+    return '\n\n'.join(html_parts)
 
 
 # ─── Blogger API ──────────────────────────────────────
+
+def _build_labels(article: dict) -> list[str]:
+    """persona.json label_strategy에 따라 Blogger 라벨 생성"""
+    persona = _load_persona()
+    label_cfg = persona.get('blogger', {}).get('label_strategy', {})
+    max_labels = label_cfg.get('max_labels', 10)
+
+    labels = []
+
+    # 1순위: 코너 (primary label)
+    corner = article.get('corner', '')
+    if corner:
+        labels.append(corner)
+
+    # 2순위: 태그
+    tags = article.get('tags', [])
+    if isinstance(tags, str):
+        tags = [t.strip() for t in tags.split(',')]
+    labels.extend(tags)
+
+    # 중복 제거 + 빈 문자열 제거 + 개수 제한
+    seen = set()
+    unique = []
+    for label in labels:
+        if label and label not in seen:
+            seen.add(label)
+            unique.append(label)
+    return unique[:max_labels]
+
 
 def publish_to_blogger(article: dict, html_content: str, creds: Credentials) -> dict:
     """Blogger API v3로 글 발행"""
     service = build('blogger', 'v3', credentials=creds)
     blog_id = BLOG_MAIN_ID
 
-    labels = [article.get('corner', '')]
-    tags = article.get('tags', [])
-    if isinstance(tags, str):
-        tags = [t.strip() for t in tags.split(',')]
-    labels.extend(tags)
-    labels = list(set(filter(None, labels)))
+    labels = _build_labels(article)
 
     body = {
         'title': article.get('title', ''),
@@ -339,13 +533,11 @@ def publish(article: dict) -> bool:
         send_pending_review_alert(article, review_reason)
         return False
 
-    # 변환봇이 미리 생성한 HTML이 있으면 재사용, 없으면 직접 변환
+    # writer_bot HTML → 그대로 사용, 마크다운이면 변환
     if article.get('_html_content'):
         full_html = article['_html_content']
     else:
-        # 마크다운 → HTML (fallback)
-        body_html, toc_html = markdown_to_html(article.get('body', ''))
-        body_html = insert_adsense_placeholders(body_html)
+        body_html, toc_html = prepare_body_html(article)
         full_html = build_full_html(article, body_html, toc_html)
 
     # Google 인증
@@ -392,8 +584,7 @@ def approve_pending(filepath: str) -> bool:
         article.pop('created_at', None)
 
         # 안전장치 우회하여 강제 발행
-        body_html, toc_html = markdown_to_html(article.get('body', ''))
-        body_html = insert_adsense_placeholders(body_html)
+        body_html, toc_html = prepare_body_html(article)
         full_html = build_full_html(article, body_html, toc_html)
 
         creds = get_google_credentials()

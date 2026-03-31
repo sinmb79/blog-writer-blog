@@ -21,6 +21,7 @@ DATA_FOLDERS = (
     "pending_review",
     "published",
     "discarded",
+    "scenarios",
 )
 
 

@@ -1,0 +1,115 @@
+{
+  "formats": {
+    "blog": {
+      "name": "블로그 글",
+      "enabled": true,
+      "handler": "writer_bot",
+      "auto_from_collect": true,
+      "description": "Blogger에 발행하는 텍스트 기반 글"
+    },
+    "short_script": {
+      "name": "숏폼 대본",
+      "enabled": true,
+      "handler": "scenario_bot",
+      "auto_from_collect": false,
+      "description": "30-60초 릴스/숏츠용 대본",
+      "constraints": {
+        "duration_sec": [30, 60],
+        "scene_count": [3, 6],
+        "tone": "빠르고 임팩트 있게. 첫 3초에 훅.",
+        "structure": "훅(질문/충격) → 핵심 3포인트 → CTA"
+      },
+      "media_forge": {
+        "action": "video.from-text",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "quality": "draft",
+          "duration_sec": 5
+        }
+      }
+    },
+    "long_script": {
+      "name": "롱폼 대본",
+      "enabled": true,
+      "handler": "scenario_bot",
+      "auto_from_collect": false,
+      "description": "3-10분 유튜브 영상용 대본",
+      "constraints": {
+        "duration_min": [3, 10],
+        "scene_count": [8, 20],
+        "tone": "체계적이고 깊이 있게. 시청 유지를 위한 전환점 설계.",
+        "structure": "오프닝(15초) → 문제 제기 → 본론(섹션별) → 인사이트 → 마무리+CTA"
+      },
+      "media_forge": {
+        "action": "video.from-text",
+        "defaults": {
+          "aspect_ratio": "16:9",
+          "quality": "production",
+          "duration_sec": 5
+        }
+      }
+    },
+    "webtoon_scenario": {
+      "name": "웹툰 시나리오",
+      "enabled": true,
+      "handler": "scenario_bot",
+      "auto_from_collect": false,
+      "description": "4-8컷 정보성 웹툰 시나리오",
+      "constraints": {
+        "panel_count": [4, 8],
+        "tone": "비주얼 씽킹. 한 컷에 하나의 정보.",
+        "structure": "제목 컷 → 문제 상황 → 설명 컷들 → 결론 컷"
+      },
+      "media_forge": {
+        "action": "image.generate",
+        "defaults": {
+          "aspect_ratio": "3:4",
+          "model": "sdxl"
+        }
+      }
+    }
+  },
+
+  "pipeline": {
+    "idea_to_formats": {
+      "description": "아이디어 → 블로그 + 선택 포맷 동시 생성",
+      "default_formats": ["blog"],
+      "optional_formats": ["short_script", "long_script", "webtoon_scenario"]
+    },
+    "blog_to_formats": {
+      "description": "발행된 블로그 글에서 파생 콘텐츠 생성",
+      "derive_from": "originals",
+      "optional_formats": ["short_script", "long_script", "webtoon_scenario"]
+    }
+  },
+
+  "media_forge_bridge": {
+    "openclaw_agent": "mediaforge",
+    "output_dir": "data/scenarios",
+    "handoff_format": {
+      "description": "scenario_bot이 생성하는 JSON을 media-forge가 소비하는 형식",
+      "fields": {
+        "request_id": "string (UUID)",
+        "source_type": "idea | blog_article",
+        "source_ref": "string (원본 파일 경로 또는 아이디어 ID)",
+        "format": "short_script | long_script | webtoon_scenario",
+        "title_ko": "string",
+        "scenes": [
+          {
+            "seq": "number",
+            "desc_ko": "string (한국어 장면 설명)",
+            "narration": "string (나레이션/대사)",
+            "visual_note": "string (화면 구성 지시)",
+            "duration_sec": "number (영상일 때)"
+          }
+        ],
+        "media_forge_options": "object (content_types.json의 media_forge.defaults 기반)",
+        "metadata": {
+          "corner": "string",
+          "tags": ["string"],
+          "created_at": "ISO timestamp"
+        }
+      }
+    }
+  }
+}

@@ -20,10 +20,11 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE_DIR))
-sys.path.insert(0, str(BASE_DIR / 'bots'))
-from bots.blog_config import DATA_DIR, LOG_DIR, load_settings
+from bots.blog_config import CONFIG_DIR, DATA_DIR, LOG_DIR, load_settings
 
 load_settings()
+
+PERSONA_PATH = CONFIG_DIR / "persona.json"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,6 +44,16 @@ def _safe_slug(text: str) -> str:
     return slug or datetime.now().strftime('article-%Y%m%d-%H%M%S')
 
 
+def _load_persona() -> dict:
+    """config/persona.json을 로드한다. 없으면 빈 dict."""
+    if not PERSONA_PATH.exists():
+        return {}
+    try:
+        return json.loads(PERSONA_PATH.read_text(encoding='utf-8'))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
 def _build_prompt(topic_data: dict) -> tuple[str, str]:
     topic = topic_data.get('topic', '').strip()
     corner = topic_data.get('corner', '쉬운세상').strip() or '쉬운세상'
@@ -50,11 +61,67 @@ def _build_prompt(topic_data: dict) -> tuple[str, str]:
     source = topic_data.get('source_url') or topic_data.get('source') or ''
     published_at = topic_data.get('published_at', '')
 
-    system = (
-        "당신은 The 4th Path 블로그 엔진의 전문 에디터다. "
-        "반드시 아래 섹션 헤더 형식만 사용해 완성된 Blogger-ready HTML 원고를 출력하라. "
-        "본문(BODY)은 HTML로 작성하고, KEY_POINTS는 3줄 이내로 작성한다."
-    )
+    persona = _load_persona()
+    voice = persona.get('voice', {})
+    corner_cfg = persona.get('corners', {}).get(corner, {})
+    writing_rules = persona.get('writing_rules', {})
+    blog_info = persona.get('blog', {})
+
+    # ── 시스템 프롬프트: 페르소나 + 브랜드 보이스 ──
+    principles_text = '\n'.join(f'- {p}' for p in voice.get('principles', []))
+    forbidden_text = ', '.join(f'"{f}"' for f in voice.get('forbidden_phrases', []))
+
+    corner_tone = corner_cfg.get('tone', '')
+    corner_structure = corner_cfg.get('structure_guide', '')
+    corner_must = corner_cfg.get('must_include', [])
+    corner_must_text = '\n'.join(f'- {m}' for m in corner_must)
+    body_min_words = corner_cfg.get('body_min_words', 600)
+
+    title_rules = writing_rules.get('title', {})
+    title_good = '\n'.join(f'  - {e}' for e in title_rules.get('examples_good', []))
+    title_bad = '\n'.join(f'  - {e}' for e in title_rules.get('examples_bad', []))
+
+    system = f"""당신은 "{blog_info.get('name', 'The 4th Path')}" 블로그의 전문 에디터다.
+태그라인: {blog_info.get('tagline', '')}
+대상 독자: {blog_info.get('target_audience', '')}
+
+## 당신의 성격
+{voice.get('personality', '')}
+
+## 글쓰기 톤
+{voice.get('tone', '')}
+
+## 핵심 원칙
+{principles_text}
+
+## 금지 표현
+다음 표현은 절대 사용하지 마라: {forbidden_text}
+
+## 이번 코너: [{corner}]
+설명: {corner_cfg.get('description', '')}
+톤: {corner_tone}
+글 구조: {corner_structure}
+반드시 포함할 것:
+{corner_must_text}
+
+## 제목 규칙
+- 최대 {title_rules.get('max_length', 40)}자
+- {title_rules.get('style', '')}
+- 좋은 예:
+{title_good}
+- 나쁜 예:
+{title_bad}
+
+## 본문 규칙
+- 최소 {body_min_words}자
+- 문단당 최대 {writing_rules.get('body', {}).get('paragraph_max_sentences', 4)}문장
+- {writing_rules.get('body', {}).get('html_format', 'Blogger-ready HTML')}
+- SEO: 키워드를 제목과 첫 문단에 포함
+
+## 출력 형식
+반드시 아래 섹션 헤더만 사용해 완성된 원고를 출력하라. 각 섹션은 ---이름--- 형식이다.
+섹션 외의 텍스트(인사말, 설명)는 절대 출력하지 마라."""
+
     prompt = f"""다음 글감을 바탕으로 한국어 블로그 원고를 작성해줘.
 
 주제: {topic}
@@ -63,39 +130,37 @@ def _build_prompt(topic_data: dict) -> tuple[str, str]:
 출처: {source}
 발행시점 참고: {published_at}
 
-출력 형식은 아래 섹션만 정확히 사용해.
+출력 형식 (이 형식만 정확히 따라라):
 
 ---TITLE---
-제목
+(제목. 40자 이내. 클릭베이트 금지.)
 
 ---META---
-검색 설명 150자 이내
+(검색 설명 150자 이내. 글의 핵심 가치 한 문장.)
 
 ---SLUG---
-영문 소문자 slug
+(영문 소문자 하이픈 slug)
 
 ---TAGS---
-태그1, 태그2, 태그3
+(쉼표 구분 태그 3-5개)
 
 ---CORNER---
 {corner}
 
 ---BODY---
-<h2>...</h2> 형식의 Blogger-ready HTML 본문
+(Blogger-ready HTML 본문. <h2>로 섹션 구분. 최소 {body_min_words}자.)
 
 ---KEY_POINTS---
-- 핵심포인트1
-- 핵심포인트2
-- 핵심포인트3
+(핵심 포인트 3줄, 각 줄 앞에 - 붙여라)
 
 ---COUPANG_KEYWORDS---
-키워드1, 키워드2
+(쿠팡 검색 키워드 2-3개, 쉼표 구분)
 
 ---SOURCES---
 {source} | 참고 출처 | {published_at}
 
 ---DISCLAIMER---
-필요 시 짧은 면책문구
+(필요 시 짧은 면책문구. 없으면 빈 줄.)
 """
     return system, prompt
 
@@ -108,15 +173,20 @@ def write_article(topic_data: dict, output_path: Path) -> dict:
     Returns: article dict (저장 완료)
     Raises: RuntimeError — 글 작성 또는 파싱 실패 시
     """
-    from engine_loader import EngineLoader
-    from article_parser import parse_output
+    from bots.engine_loader import EngineLoader, WriterError
+    from bots.article_parser import parse_output
+    from bots.article_schema import validate_article
 
     title = topic_data.get('topic', topic_data.get('title', ''))
     logger.info(f"글 작성 시작: {title}")
 
     system, prompt = _build_prompt(topic_data)
     writer = EngineLoader().get_writer()
-    raw_output = writer.write(prompt, system=system).strip()
+
+    try:
+        raw_output = writer.write_with_retry(prompt, system=system).strip()
+    except WriterError as exc:
+        raise RuntimeError(f'글쓰기 엔진 오류 ({type(exc).__name__}): {exc}') from exc
 
     if not raw_output:
         raise RuntimeError('글쓰기 엔진 응답이 비어 있습니다.')
@@ -124,6 +194,12 @@ def write_article(topic_data: dict, output_path: Path) -> dict:
     article = parse_output(raw_output)
     if not article:
         raise RuntimeError(f'글쓰기 엔진 출력 파싱 실패 (앞 200자): {raw_output[:200]}')
+
+    # 품질 guardrail (blocking 아님, 경고만)
+    issues = validate_article(article, corner=topic_data.get('corner', ''))
+    if issues:
+        for issue in issues:
+            logger.warning(f"품질 경고: {issue}")
 
     article.setdefault('title', title)
     article['slug'] = article.get('slug') or _safe_slug(article['title'])
@@ -135,6 +211,7 @@ def write_article(topic_data: dict, output_path: Path) -> dict:
     article['source_url'] = topic_data.get('source_url') or topic_data.get('source') or ''
     article['published_at'] = topic_data.get('published_at', '')
     article['created_at'] = datetime.now().isoformat()
+    article['quality_issues'] = issues
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
