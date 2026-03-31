@@ -42,7 +42,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+BOT_TOKEN = os.getenv("TELEGRAM_DASHBOARD_TOKEN", "") or os.getenv("TELEGRAM_BOT_TOKEN", "")
 ALLOWED_CHAT_IDS = {int(cid) for cid in os.getenv("TELEGRAM_CHAT_ID", "").split(",") if cid.strip()}
 
 # Conversation states
