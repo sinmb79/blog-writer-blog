@@ -634,21 +634,54 @@ def get_pending_list() -> list[dict]:
 
 
 if __name__ == '__main__':
-    # 테스트용: 샘플 아티클 발행 시도
-    sample = {
-        'title': '테스트 글',
-        'meta': '테스트 메타 설명',
-        'slug': 'test-article',
-        'tags': ['테스트', 'AI'],
-        'corner': '쉬운세상',
-        'body': '## 제목\n\n본문 내용입니다.\n\n## 결론\n\n마무리입니다.',
-        'coupang_keywords': ['키보드'],
-        'sources': [
-            {'url': 'https://example.com/1', 'title': '출처1', 'date': '2026-03-24'},
-            {'url': 'https://example.com/2', 'title': '출처2', 'date': '2026-03-24'},
-        ],
-        'disclaimer': '',
-        'quality_score': 80,
-    }
-    result = publish(sample)
-    print('발행 결과:', result)
+    import argparse
+
+    parser = argparse.ArgumentParser(description='The 4th Path 발행봇')
+    parser.add_argument('--file', type=str, help='발행할 원고 JSON 파일 경로')
+    parser.add_argument('--dry-run', action='store_true', help='실제 발행 없이 HTML 변환만 확인')
+    parser.add_argument('--latest', action='store_true', help='data/originals/ 최신 파일 발행')
+    args = parser.parse_args()
+
+    if args.file:
+        # 특정 파일 발행
+        article_path = Path(args.file)
+        if not article_path.exists():
+            print(f"[오류] 파일을 찾을 수 없습니다: {args.file}", file=sys.stderr)
+            sys.exit(1)
+        article = json.loads(article_path.read_text(encoding='utf-8'))
+        print(f"발행 대상: {article.get('title', '?')} ({article_path.name})")
+
+    elif args.latest:
+        # 최신 원고 발행
+        originals = sorted((DATA_DIR / 'originals').glob('*.json'))
+        if not originals:
+            print("[오류] data/originals/에 원고가 없습니다.", file=sys.stderr)
+            sys.exit(1)
+        article_path = originals[-1]
+        article = json.loads(article_path.read_text(encoding='utf-8'))
+        print(f"최신 원고: {article.get('title', '?')} ({article_path.name})")
+
+    else:
+        print("사용법:")
+        print("  python bots/publisher_bot.py --file data/originals/파일.json")
+        print("  python bots/publisher_bot.py --latest")
+        print("  python bots/publisher_bot.py --latest --dry-run")
+        sys.exit(0)
+
+    if args.dry_run:
+        body_html, toc_html = prepare_body_html(article)
+        full_html = build_full_html(article, body_html, toc_html)
+        print(f"\n[DRY RUN] HTML 생성 완료 ({len(full_html)}자)")
+        print(f"  제목: {article.get('title', '')}")
+        print(f"  코너: {article.get('corner', '')}")
+        print(f"  라벨: {_build_labels(article)}")
+        print(f"  HTML 미리보기 (처음 300자):")
+        print(f"  {full_html[:300]}")
+        sys.exit(0)
+
+    result = publish(article)
+    if result:
+        print(f"[성공] 발행 완료: {article.get('title', '')}")
+    else:
+        print(f"[검토대기] 수동 검토로 이동: {article.get('title', '')}")
+    sys.exit(0 if result else 1)
