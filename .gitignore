@@ -4,6 +4,7 @@ credentials.json
 service_account*.json
 *_secret*.json
 *_key*.json
+!config/safety_keywords.json
 
 venv/
 .pytest_cache/
@@ -30,6 +31,8 @@ data/published/*
 !data/published/.gitkeep
 data/discarded/*
 !data/discarded/.gitkeep
+data/scenarios/*
+!data/scenarios/.gitkeep
 
 dashboard/frontend/node_modules/
 dashboard/frontend/dist/
