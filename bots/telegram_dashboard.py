@@ -49,7 +49,11 @@ ALLOWED_CHAT_IDS = {int(cid) for cid in os.getenv("TELEGRAM_CHAT_ID", "").split(
 (
     WAITING_TOPIC, WAITING_CORNER,
     WAITING_SCENARIO_IDEA, WAITING_SCENARIO_FORMAT,
-) = range(4)
+    WAITING_MF_IMAGE_PROMPT, WAITING_MF_VIDEO_DESC, WAITING_MF_TTS_TEXT,
+    WAITING_MF_INGEST_PATH,
+) = range(8)
+
+MEDIAFORGE_DIR = Path(os.getenv("MEDIAFORGE_DIR", r"C:\Users\sinmb\workspace\mediaforge"))
 
 
 # ═══════════════════════════════════════════════════════════
@@ -92,6 +96,19 @@ def main_panel_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton("Scenario", callback_data="cmd_scenario_menu"),
             InlineKeyboardButton("Articles", callback_data="cmd_articles"),
             InlineKeyboardButton("Scenarios", callback_data="cmd_scenario_list"),
+        ],
+        [
+            InlineKeyboardButton("-- Media (Forge) --", callback_data="noop"),
+        ],
+        [
+            InlineKeyboardButton("Doctor", callback_data="cmd_mf_doctor"),
+            InlineKeyboardButton("Characters", callback_data="cmd_mf_characters"),
+            InlineKeyboardButton("Ingest", callback_data="cmd_mf_ingest"),
+        ],
+        [
+            InlineKeyboardButton("Image", callback_data="cmd_mf_image"),
+            InlineKeyboardButton("Video", callback_data="cmd_mf_video"),
+            InlineKeyboardButton("TTS", callback_data="cmd_mf_tts"),
         ],
         [
             InlineKeyboardButton("-- System --", callback_data="noop"),
@@ -819,6 +836,181 @@ async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ═══════════════════════════════════════════════════════════
+#  MediaForge
+# ═══════════════════════════════════════════════════════════
+
+def _run_mf_cmd(*args: str) -> str:
+    """mediaforge CLI 실행. 결과 텍스트 반환."""
+    try:
+        cmd = ["npm", "run", "engine", "--"] + list(args)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=120, cwd=str(MEDIAFORGE_DIR),
+        )
+        return result.stdout.strip() or result.stderr.strip() or "(no output)"
+    except subprocess.TimeoutExpired:
+        return "TIMEOUT (120s)"
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@authorized
+async def handle_mf_doctor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    msg = await query.edit_message_text("Checking MediaForge backends...")
+    output = await asyncio.to_thread(_run_mf_cmd, "doctor", "--json")
+    # 요약 추출
+    try:
+        doc = json.loads(output)
+        lines = ["<b>MediaForge Doctor</b>\n"]
+        for name, info in doc.items():
+            if isinstance(info, dict):
+                ok = info.get("ok", info.get("available", False))
+                lines.append(f"  {'OK' if ok else 'XX'} {name}")
+            else:
+                lines.append(f"  {name}: {info}")
+        text = "\n".join(lines)
+    except Exception:
+        text = f"<b>MediaForge Doctor</b>\n\n<code>{output[:800]}</code>"
+    await msg.edit_text(text, reply_markup=_back(), parse_mode="HTML")
+
+
+@authorized
+async def handle_mf_characters(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    msg = await query.edit_message_text("Loading characters...")
+    output = await asyncio.to_thread(_run_mf_cmd, "scenario", "character", "list", "--json")
+    try:
+        chars = json.loads(output)
+        if not chars:
+            text = "<b>Characters</b>\n\n  (none registered)"
+        else:
+            lines = ["<b>Characters</b>\n"]
+            for c in (chars if isinstance(chars, list) else []):
+                lines.append(f"  {c.get('name', '?')} ({c.get('type', '?')})")
+            text = "\n".join(lines)
+    except Exception:
+        text = f"<b>Characters</b>\n\n<code>{output[:600]}</code>"
+    await msg.edit_text(text, reply_markup=_back(), parse_mode="HTML")
+
+
+@authorized
+async def handle_mf_ingest_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    # 시나리오 파일 목록
+    scenarios = sorted((DATA_DIR / "scenarios").glob("*.json"), reverse=True)[:6]
+    if not scenarios:
+        await query.edit_message_text("No scenarios found.", reply_markup=_back())
+        return
+    buttons = []
+    for i, f in enumerate(scenarios):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+            label = d.get("title_ko", f.name)[:30]
+        except Exception:
+            label = f.name[:30]
+        buttons.append([InlineKeyboardButton(label, callback_data=f"mf_ingest_{i}")])
+    buttons.append([InlineKeyboardButton("<< main", callback_data="cmd_back")])
+    context.user_data["mf_scenario_files"] = [str(f) for f in scenarios]
+    await query.edit_message_text("<b>Ingest Scenario</b>\nSelect:", reply_markup=InlineKeyboardMarkup(buttons), parse_mode="HTML")
+
+
+@authorized
+async def handle_mf_ingest_run(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    idx = int(query.data.replace("mf_ingest_", ""))
+    files = context.user_data.get("mf_scenario_files", [])
+    fpath = files[idx] if idx < len(files) else ""
+    if not fpath:
+        await query.edit_message_text("File not found.", reply_markup=_back())
+        return
+    msg = await query.edit_message_text(f"Ingesting scenario...\n{Path(fpath).name}")
+    output = await asyncio.to_thread(_run_mf_cmd, "scenario", "ingest", fpath, "--simulate", "--json")
+    text = f"<b>Ingest Result</b>\n\n<code>{output[:1000]}</code>"
+    await msg.edit_text(text, reply_markup=_back(), parse_mode="HTML")
+
+
+@authorized
+async def handle_mf_image_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("Type English image prompt:")
+    return WAITING_MF_IMAGE_PROMPT
+
+
+@authorized
+async def handle_mf_image_go(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    prompt = update.message.text
+    msg = await update.message.reply_text(f"Generating image...\n{prompt[:50]}")
+    output = await asyncio.to_thread(
+        _run_mf_cmd, "forge", "image", "generate",
+        "--prompt", prompt, "--model", "sdxl", "--resolution", "1k", "--json",
+    )
+    try:
+        data = json.loads(output)
+        paths = data.get("output_paths", [])
+        text = f"<b>Image Done</b>\n  Files: {len(paths)}\n  Path: <code>{paths[0] if paths else '?'}</code>"
+    except Exception:
+        text = f"<b>Image Result</b>\n\n<code>{output[:600]}</code>"
+    await msg.edit_text(text, reply_markup=_back(), parse_mode="HTML")
+    return ConversationHandler.END
+
+
+@authorized
+async def handle_mf_video_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("Type scene description (Korean):")
+    return WAITING_MF_VIDEO_DESC
+
+
+@authorized
+async def handle_mf_video_go(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    desc = update.message.text
+    msg = await update.message.reply_text(f"Generating video...\n{desc[:50]}")
+    output = await asyncio.to_thread(
+        _run_mf_cmd, "forge", "video", "from-text",
+        "--desc", desc, "--model", "wan22", "--quality", "draft", "--json",
+    )
+    try:
+        data = json.loads(output)
+        text = f"<b>Video Done</b>\n  Path: <code>{data.get('output_path', '?')}</code>"
+    except Exception:
+        text = f"<b>Video Result</b>\n\n<code>{output[:600]}</code>"
+    await msg.edit_text(text, reply_markup=_back(), parse_mode="HTML")
+    return ConversationHandler.END
+
+
+@authorized
+async def handle_mf_tts_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("Type narration text (Korean):")
+    return WAITING_MF_TTS_TEXT
+
+
+@authorized
+async def handle_mf_tts_go(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text_input = update.message.text
+    msg = await update.message.reply_text(f"Generating TTS...\n{text_input[:50]}")
+    output = await asyncio.to_thread(
+        _run_mf_cmd, "forge", "audio", "tts",
+        "--text", text_input, "--lang", "ko", "--json",
+    )
+    try:
+        data = json.loads(output)
+        text = f"<b>TTS Done</b>\n  Path: <code>{data.get('output_path', '?')}</code>"
+    except Exception:
+        text = f"<b>TTS Result</b>\n\n<code>{output[:600]}</code>"
+    await msg.edit_text(text, reply_markup=_back(), parse_mode="HTML")
+    return ConversationHandler.END
+
+
+# ═══════════════════════════════════════════════════════════
 #  전체 파이프라인
 # ═══════════════════════════════════════════════════════════
 
@@ -868,9 +1060,29 @@ def create_app() -> Application:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("panel", cmd_panel))
 
+    # MediaForge conversations
+    mf_image_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(handle_mf_image_start, pattern="^cmd_mf_image$")],
+        states={WAITING_MF_IMAGE_PROMPT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mf_image_go)]},
+        fallbacks=[CommandHandler("panel", cmd_panel)],
+    )
+    mf_video_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(handle_mf_video_start, pattern="^cmd_mf_video$")],
+        states={WAITING_MF_VIDEO_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mf_video_go)]},
+        fallbacks=[CommandHandler("panel", cmd_panel)],
+    )
+    mf_tts_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(handle_mf_tts_start, pattern="^cmd_mf_tts$")],
+        states={WAITING_MF_TTS_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mf_tts_go)]},
+        fallbacks=[CommandHandler("panel", cmd_panel)],
+    )
+
     # Conversations (register first)
     app.add_handler(write_conv)
     app.add_handler(scenario_conv)
+    app.add_handler(mf_image_conv)
+    app.add_handler(mf_video_conv)
+    app.add_handler(mf_tts_conv)
 
     # Callbacks
     callbacks = {
@@ -892,6 +1104,9 @@ def create_app() -> Application:
         "cmd_scenario_menu": handle_scenario_menu,
         "cmd_scenario_list": handle_scenario_list,
         "cmd_full_pipeline": handle_full_pipeline,
+        "cmd_mf_doctor": handle_mf_doctor,
+        "cmd_mf_characters": handle_mf_characters,
+        "cmd_mf_ingest": handle_mf_ingest_start,
         "cmd_back": handle_back,
     }
     for pattern, handler in callbacks.items():
@@ -902,5 +1117,6 @@ def create_app() -> Application:
     app.add_handler(CallbackQueryHandler(handle_log_view, pattern="^log_"))
     app.add_handler(CallbackQueryHandler(handle_cron_toggle, pattern="^cron_(enable|disable)_"))
     app.add_handler(CallbackQueryHandler(handle_cron_run, pattern="^cron_run_"))
+    app.add_handler(CallbackQueryHandler(handle_mf_ingest_run, pattern="^mf_ingest_"))
 
     return app
