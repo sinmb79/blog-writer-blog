@@ -36,24 +36,24 @@
     "쉬운세상": {
       "description": "복잡한 기술을 누구나 이해할 수 있게 설명하는 가이드",
       "tone": "친절한 선생님. 독자가 '아, 그거 그런 거였어?' 하게 만든다.",
-      "structure_guide": "문제 제기 → 핵심 개념 설명 (비유 필수) → 실제 사용법/적용법 → 한 줄 정리",
-      "must_include": ["일상적 비유 1개 이상", "단계별 설명", "실제 사용 예시"],
+      "structure_guide": "문제 제기 → 핵심 개념 설명 (비유 필수) → 실제 코드/명령어 예시 → 단계별 적용법 → 한 줄 정리",
+      "must_include": ["일상적 비유 1개 이상", "단계별 설명", "실제 실행 예제 코드 또는 명령어", "수치 근거 1개 이상"],
       "body_min_words": 800,
       "h2_min_count": 3
     },
     "숨은보물": {
       "description": "대중에게 알려지지 않은 유용한 도구, 서비스, 오픈소스 발굴",
       "tone": "흥분을 절제한 추천. '이거 진짜 괜찮다'는 느낌을 데이터로 뒷받침.",
-      "structure_guide": "이 도구가 뭔지 한 줄 → 왜 주목해야 하는지 → 실제 사용 화면/과정 → 장단점 비교 → 대안 도구 1-2개",
-      "must_include": ["도구의 핵심 기능 3가지", "가격/무료 여부", "대안 비교"],
+      "structure_guide": "이 도구가 뭔지 한 줄 → 왜 주목해야 하는지 → 실제 실행 예제 코드 → 장단점(수치 근거) → 커뮤니티 반응 → 대안 도구 1-2개",
+      "must_include": ["도구의 핵심 기능 3가지", "가격/무료 여부", "대안 비교", "실제 실행 예제 코드 1개 이상", "GitHub 별/이슈 등 커뮤니티 수치"],
       "body_min_words": 600,
       "h2_min_count": 3
     },
     "바이브리포트": {
       "description": "기술 트렌드를 맥락과 함께 읽는 분석 리포트",
       "tone": "냉정한 분석가. 팩트 중심, 의견은 명확히 분리.",
-      "structure_guide": "무슨 일이 일어났는가 → 왜 중요한가 → 누가 영향을 받는가 → 앞으로 어떻게 될 것인가",
-      "must_include": ["타임라인 또는 배경 맥락", "데이터/수치 1개 이상", "전망"],
+      "structure_guide": "무슨 일이 일어났는가 → 왜 중요한가(수치 근거) → 커뮤니티/업계 반응 → 누가 영향 → 전망",
+      "must_include": ["타임라인 또는 배경 맥락", "데이터/수치 2개 이상", "커뮤니티/업계 반응", "전망"],
       "body_min_words": 800,
       "h2_min_count": 3
     },
@@ -98,12 +98,21 @@
       "paragraph_max_sentences": 4,
       "use_subheadings": true,
       "html_format": "Blogger-ready HTML. <h2>로 섹션 구분, <p>로 문단, <ul>/<ol>로 목록, <blockquote>로 인용.",
-      "image_alt_required": true
+      "image_alt_required": true,
+      "must_include_code_example": true,
+      "must_include_data_evidence": true,
+      "code_example_note": "도구/서비스/기술 주제일 때 실제 실행 예제 코드를 <pre><code> 블록으로 1개 이상 포함",
+      "data_evidence_note": "비용, 성능, 사용량 등 구체적 수치를 1개 이상 포함. 수치 없으면 '공식 수치 미공개' 명시"
     },
     "seo": {
       "keyword_in_title": true,
       "keyword_in_first_paragraph": true,
       "internal_link_suggestion": true
+    },
+    "quality_enrichment": {
+      "community_reaction": "GitHub 별 수, 이슈/PR 수, 커뮤니티 반응(HN/Reddit 댓글 수) 등 가능한 수치를 본문에 포함",
+      "comparison_context": "비교 대상(기존 도구, 경쟁 도구)을 1개 이상 언급하여 독자가 판단할 맥락 제공",
+      "actionable_conclusion": "결론에서 독자가 바로 실행할 수 있는 구체적 첫 단계 제시 (URL, 명령어 등)"
     }
   },
 

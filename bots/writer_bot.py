@@ -70,7 +70,8 @@ def _build_prompt(topic_data: dict) -> tuple[str, str]:
     # ── 시스템: 최소한으로. ──
     system = f"""한국어 블로그 원고 생성기. 대화 금지. ---TITLE---부터 완성 원고만 출력.
 코너 [{corner}]: {corner_tone}
-{body_min_words}자 이상. HTML(<h2>,<p>,<ul>). 과장 금지."""
+{body_min_words}자 이상. HTML(<h2>,<p>,<ul>,<pre><code>). 과장 금지.
+필수: 실행 예제 코드(<pre><code>)를 1개 이상 포함. 구체적 수치(별 수, 비용, 성능) 포함. 커뮤니티 반응 언급."""
 
     prompt = f"""{topic}에 대한 블로그 원고를 써라. 제목과 본문에 "{topic}"을 반드시 포함하라.
 

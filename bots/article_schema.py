@@ -113,4 +113,16 @@ def validate_article(article: dict, corner: str = "") -> list[str]:
     if meta and len(meta) > meta_max:
         issues.append(f"meta 설명이 너무 김 ({len(meta)}자 > {meta_max}자)")
 
+    # ── 코드 예제 검증 ──
+    body_rules = persona.get("writing_rules", {}).get("body", {})
+    if body_rules.get("must_include_code_example", False):
+        if "<code>" not in body and "<pre>" not in body:
+            issues.append("실행 예제 코드(<pre><code>) 없음")
+
+    # ── 수치 근거 검증 ──
+    if body_rules.get("must_include_data_evidence", False):
+        has_numbers = bool(re.search(r'\d+[,.]?\d*\s*(개|건|명|%|달러|원|GB|MB|초|분|시간|일|주|월|배)', body))
+        if not has_numbers:
+            issues.append("구체적 수치 근거 없음 (별 수, 비용, 성능 등)")
+
     return issues
