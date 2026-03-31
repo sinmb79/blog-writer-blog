@@ -21,6 +21,12 @@ def parse_output(raw_output: str) -> Optional[dict]:
     Returns: dict 또는 None (파싱 실패 시)
     """
     raw_output = raw_output.replace('\r\n', '\n').strip()
+
+    # ChatGPT가 인사말을 먼저 출력한 경우, ---TITLE--- 이전 텍스트를 잘라냄
+    first_section = re.search(r'---\w+---', raw_output)
+    if first_section and first_section.start() > 0:
+        raw_output = raw_output[first_section.start():]
+
     sections = {}
     pattern = re.compile(r'---(\w+)---\s*\n(.*?)(?=---\w+---|$)', re.DOTALL)
     matches = pattern.findall(raw_output)
