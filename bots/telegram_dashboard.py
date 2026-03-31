@@ -173,9 +173,9 @@ async def handle_collect(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def _run_collect() -> dict:
     try:
-        from bots.collector_bot import collect_topics
-        r = collect_topics()
-        return {"success": True, "collected": r.get("collected", 0), "discarded": r.get("discarded", 0)}
+        from bots.collector_bot import run as collector_run
+        passed = collector_run()
+        return {"success": True, "collected": len(passed) if passed else 0}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

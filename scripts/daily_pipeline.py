@@ -50,9 +50,9 @@ def send_telegram(text: str):
 def run_collect() -> dict:
     """글감 수집."""
     try:
-        from bots.collector_bot import collect_topics
-        result = collect_topics()
-        return {'success': True, 'collected': result.get('collected', 0), 'discarded': result.get('discarded', 0)}
+        from bots.collector_bot import run as collector_run
+        passed = collector_run()
+        return {'success': True, 'collected': len(passed) if passed else 0}
     except Exception as e:
         logger.error(f"수집 실패: {e}")
         return {'success': False, 'error': str(e)}
@@ -111,7 +111,7 @@ def main():
     report_lines = [f"📊 <b>[일간 보고] {today}</b>", ""]
 
     if collect_result['success']:
-        report_lines.append(f"📥 수집: {collect_result['collected']}건 (폐기 {collect_result.get('discarded', 0)}건)")
+        report_lines.append(f"📥 수집: {collect_result['collected']}건")
     else:
         report_lines.append(f"❌ 수집 실패: {collect_result.get('error', '')[:100]}")
 
