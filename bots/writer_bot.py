@@ -67,19 +67,18 @@ def _build_prompt(topic_data: dict) -> tuple[str, str]:
     corner_tone = corner_cfg.get('tone', '')
     corner_structure = corner_cfg.get('structure_guide', '')
 
-    # ── 시스템: 짧고 직접적으로. ChatGPT는 짧은 system에서 잘 따른다. ──
-    system = f"""블로그 글쓰기 기계. 대화 금지. ---TITLE---부터 시작해서 완성된 원고만 출력.
+    # ── 시스템: 최소한으로. ──
+    system = f"""한국어 블로그 원고 생성기. 대화 금지. ---TITLE---부터 완성 원고만 출력.
 코너 [{corner}]: {corner_tone}
-글 구조: {corner_structure}
-본문 최소 {body_min_words}자. Blogger HTML(<h2>,<p>,<ul>). 과장 금지. 전문용어에 설명 붙이기."""
+{body_min_words}자 이상. HTML(<h2>,<p>,<ul>). 과장 금지."""
 
-    prompt = f"""주제: {topic}
-코너: {corner}
-설명: {description}
+    prompt = f"""{topic}에 대한 블로그 원고를 써라. 제목과 본문에 "{topic}"을 반드시 포함하라.
+
+{description}
+
 출처: {source}
-발행시점: {published_at}
 
-위 주제로 한국어 블로그 원고를 작성하라. ---TITLE---부터 시작:
+위 정보를 바탕으로 ---TITLE---부터 시작. "{topic}"을 본문 첫 문단에 명시:
 
 ---TITLE---
 (40자 이내 제목)

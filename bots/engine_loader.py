@@ -92,34 +92,42 @@ class OpenClawWriter(BaseWriter):
         self.timeout = cfg.get("timeout", 300)
 
     def write(self, prompt: str, system: str = "") -> str:
+        import tempfile
         import uuid
-        # system + prompt을 하나로 합치되, 핵심 지시를 앞에 짧게 배치
         if system:
             message = f"{system}\n\n{prompt}"
         else:
             message = prompt
-        # 매 호출마다 새 세션을 사용하여 이전 대화 컨텍스트 오염 방지
+        # 메시지를 임시 파일로 저장 → shell에서 cat으로 읽어서 전달
+        # Windows subprocess에서 긴 유니코드 인자가 깨지는 문제 회피
+        msg_file = Path(tempfile.gettempdir()) / f"openclaw_msg_{uuid.uuid4().hex[:8]}.txt"
+        msg_file.write_text(message, encoding="utf-8")
         session_id = f"write-{uuid.uuid4().hex[:8]}"
         try:
-            cmd = [
-                self._CLI, "agent",
-                "--agent", self.agent_name,
-                "--session-id", session_id,
-                "--message", message,
-                "--json",
-            ]
+            # shell=True + cat으로 파일 내용을 --message에 전달
+            shell_cmd = (
+                f'{self._CLI} agent'
+                f' --agent {self.agent_name}'
+                f' --session-id {session_id}'
+                f' --message "$(cat \\"{msg_file}\\")"'
+                f' --json'
+                f' --thinking medium'
+            )
             result = subprocess.run(
-                cmd,
+                shell_cmd,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
                 timeout=self.timeout,
+                shell=True,
             )
         except FileNotFoundError:
             raise WriterCLINotFoundError("openclaw CLI를 찾을 수 없음")
         except subprocess.TimeoutExpired:
             raise WriterTimeoutError(f"openclaw가 {self.timeout}초 제한시간 초과")
+        finally:
+            msg_file.unlink(missing_ok=True)
 
         if result.returncode != 0:
             raise WriterAPIError(
