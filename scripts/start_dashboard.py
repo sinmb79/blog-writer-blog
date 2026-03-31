@@ -21,8 +21,8 @@ def main():
         print("[오류] TELEGRAM_BOT_TOKEN이 설정되지 않았습니다.", file=sys.stderr)
         sys.exit(1)
 
-    print("🚀 The 4th Path Telegram 대시보드 시작...")
-    print("   Ctrl+C로 종료")
+    print("The 4th Path Telegram Dashboard starting...")
+    print("   Ctrl+C to stop")
     app = create_app()
     app.run_polling(drop_pending_updates=True)
 
