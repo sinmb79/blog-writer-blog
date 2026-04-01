@@ -39,6 +39,7 @@
       "structure_guide": "문제 제기 → 핵심 개념 설명 (비유 필수) → 실제 코드/명령어 예시 → 단계별 적용법 → 한 줄 정리",
       "must_include": ["일상적 비유 1개 이상", "단계별 설명", "실제 실행 예제 코드 또는 명령어", "수치 근거 1개 이상"],
       "writing_persona": "올리버 색스: 한 존재 또는 한 장면의 구체적 묘사로 시작하라. 그 장면이 세계 전체를 이해하는 실마리로 연결되어야 한다. 설명하기 전에 독자를 그 순간 안으로 끌어들여라.",
+      "writing_persona_en": "Richard Feynman: Start with a single concrete observation or experiment. Build up from first principles using everyday analogies. The reader should think 'Oh, THAT'S why it works that way' — not just 'I understand', but genuinely surprised by the simplicity underneath.",
       "body_min_words": 800,
       "h2_min_count": 3
     },
@@ -48,6 +49,7 @@
       "structure_guide": "이 도구가 뭔지 한 줄 → 왜 주목해야 하는지 → 실제 실행 예제 코드 → 장단점(수치 근거) → 커뮤니티 반응 → 대안 도구 1-2개",
       "must_include": ["도구의 핵심 기능 3가지", "가격/무료 여부", "대안 비교", "실제 실행 예제 코드 1개 이상", "GitHub 별/이슈 등 커뮤니티 수치"],
       "writing_persona": "폴 그레이엄: 도구 하나에서 출발해 글 마지막에 명제를 제시하는 에세이 구조. '왜 이런 도구가 살아남는가'라는 본질적 질문으로 수렴하라. 과장 없이, 논리로 설득하라.",
+      "writing_persona_en": "Kevin Kelly: Write like a technologist who has seen tools come and go for decades. Describe what the tool actually does with quiet enthusiasm — no hype, but let the implications speak. End with why this particular tool represents something larger about where software is heading.",
       "body_min_words": 600,
       "h2_min_count": 3
     },
@@ -57,15 +59,17 @@
       "structure_guide": "무슨 일이 일어났는가 → 왜 중요한가(수치 근거) → 커뮤니티/업계 반응 → 누가 영향 → 전망",
       "must_include": ["타임라인 또는 배경 맥락", "데이터/수치 2개 이상", "커뮤니티/업계 반응", "전망"],
       "writing_persona": "마이클 루이스(머니볼, 빅쇼트): 숫자를 극적 전환점으로 사용하라. '왜 아무도 이걸 몰랐나' 또는 '이 숫자가 말하는 진짜 이야기'로 독자를 끌어당겨라. 데이터 뒤에 숨은 인간적 맥락을 드러내라.",
+      "writing_persona_en": "Malcolm Gladwell: Open with a counter-intuitive anecdote or unexpected data point. Build toward a reframe — the thing everyone thinks they understand, they don't. Use numbers as dramatic turning points, not just evidence. The human story behind the trend matters as much as the trend itself.",
       "body_min_words": 800,
       "h2_min_count": 3
     },
     "팩트체크": {
       "description": "떠도는 정보의 사실 여부를 검증하는 기사",
       "tone": "중립적 수사관. 감정 배제, 근거만 제시.",
-      "structure_guide": "주장 요약 → 검증 과정 (출처별) → 판정 (사실/대체로사실/절반의사실/거짓) → 맥락 보충",
+      "structure_guide": "주장 요약 → 검증 과정 (출처별) → 판정 (사실/대체로사실/거짓) → 맥락 보충",
       "must_include": ["검증 대상 주장 명시", "출처 2개 이상의 교차 검증", "명확한 판정"],
       "writing_persona": "크리스토퍼 히친스: 주장을 정면으로 마주하고, 근거를 냉정하게 해부하라. 감정 없이 날카롭게. 판정은 명확하게, 이유는 단 한 줄로.",
+      "writing_persona_en": "Christopher Hitchens: State the claim plainly, then dismantle it with sources. No hedging, no 'some say'. Wit is allowed but never at the expense of precision. The verdict must be unambiguous — and you must be willing to defend it.",
       "body_min_words": 600,
       "h2_min_count": 3
     },
@@ -75,6 +79,7 @@
       "structure_guide": "한 줄 제목 → 핵심 메시지 3줄 → 한 줄 출처",
       "must_include": ["핵심 수치 또는 팩트 1개"],
       "writing_persona": "어니스트 헤밍웨이: 빙산 이론. 보이는 것은 10%, 나머지 90%는 독자가 느끼게 하라. 문장은 짧게, 여백은 무겁게.",
+      "writing_persona_en": "David Ogilvy: One headline, one idea. Every word earns its place. The reader decides in the first five seconds — make sure those five seconds count. No cleverness for its own sake; only clarity that compels.",
       "body_min_words": 150,
       "h2_min_count": 0
     }

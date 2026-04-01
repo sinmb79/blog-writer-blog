@@ -6,11 +6,22 @@ Uses blog-writer agent to rewrite the article in English using the same
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
-from copy import deepcopy
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _load_persona_en(corner: str) -> str:
+    """Load writing_persona_en for the given corner from persona.json."""
+    persona_path = Path(__file__).resolve().parents[1] / "config" / "persona.json"
+    try:
+        persona = json.loads(persona_path.read_text(encoding="utf-8"))
+        return persona.get("corners", {}).get(corner, {}).get("writing_persona_en", "")
+    except (json.JSONDecodeError, OSError):
+        return ""
 
 
 def translate_article(article: dict) -> dict:
@@ -23,18 +34,19 @@ def translate_article(article: dict) -> dict:
     from bots.article_parser import parse_output
 
     title_ko = article.get('title', '')
-    body_ko = article.get('body', '')
     meta_ko = article.get('meta', '')
     corner = article.get('corner', '쉬운세상')
-    tags_ko = ', '.join(article.get('tags', []))
     kp_ko = '\n'.join(f'- {k}' for k in article.get('key_points', []))
     sources = article.get('sources', [])
     source_line = sources[0].get('url', '') if sources else ''
     published_at = article.get('published_at', '')
     slug_base = re.sub(r'-en$', '', article.get('slug', 'article'))
 
+    writing_persona_en = _load_persona_en(corner)
+    persona_line = f"\nWriting style: {writing_persona_en}" if writing_persona_en else ""
+
     system = (
-        "English tech blog writer. No conversation. "
+        f"English tech blog writer. No conversation.{persona_line} "
         "Output only the completed article starting from ---TITLE---."
     )
 
