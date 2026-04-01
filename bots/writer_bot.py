@@ -66,10 +66,12 @@ def _build_prompt(topic_data: dict) -> tuple[str, str]:
     body_min_words = corner_cfg.get('body_min_words', 600)
     corner_tone = corner_cfg.get('tone', '')
     corner_structure = corner_cfg.get('structure_guide', '')
+    writing_persona = corner_cfg.get('writing_persona', '')
 
     # ── 시스템: 최소한으로. ──
+    persona_line = f"\n글쓰기 스타일: {writing_persona}" if writing_persona else ""
     system = f"""한국어 블로그 원고 생성기. 대화 금지. ---TITLE---부터 완성 원고만 출력.
-코너 [{corner}]: {corner_tone}
+코너 [{corner}]: {corner_tone}{persona_line}
 {body_min_words}자 이상. HTML(<h2>,<p>,<ul>,<pre><code>). 과장 금지.
 필수: 실행 예제 코드(<pre><code>)를 1개 이상 포함. 구체적 수치(별 수, 비용, 성능) 포함. 커뮤니티 반응 언급."""
 
