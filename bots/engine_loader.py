@@ -84,8 +84,25 @@ class BaseWriter(ABC):
         raise last_err  # type: ignore[misc]
 
 
+def _find_openclaw_cli() -> str:
+    """Find openclaw CLI, checking npm global bin on Windows if not in PATH."""
+    import shutil
+    if os.name == "nt":
+        # 1. PATH에서 찾기
+        found = shutil.which("openclaw") or shutil.which("openclaw.cmd")
+        if found:
+            return found
+        # 2. npm global bin 직접 확인
+        npm_bin = Path(os.environ.get("APPDATA", "")) / "npm" / "openclaw.cmd"
+        if npm_bin.exists():
+            return str(npm_bin)
+        return "openclaw.cmd"  # fallback
+    found = shutil.which("openclaw")
+    return found if found else "openclaw"
+
+
 class OpenClawWriter(BaseWriter):
-    _CLI = "openclaw.cmd" if os.name == "nt" else "openclaw"
+    _CLI = _find_openclaw_cli()
 
     def __init__(self, cfg: dict):
         self.agent_name = cfg.get("agent_name", "blog-writer")
@@ -135,6 +152,15 @@ class OpenClawWriter(BaseWriter):
             )
 
         stdout = result.stdout.strip()
+        stderr = result.stderr.strip()
+
+        # OpenClaw fallback(embedded) 모드에서는 JSON이 stderr에 섞여서 출력됨
+        # stderr에서 {"payloads":... 또는 {"text":... JSON 블록만 추출
+        if not stdout and stderr:
+            import re as _re
+            json_match = _re.search(r'(\{.*\})', stderr, _re.DOTALL)
+            stdout = json_match.group(1) if json_match else ''
+
         if not stdout:
             raise WriterEmptyResponseError("openclaw 응답이 비어 있음")
 
@@ -149,20 +175,28 @@ class OpenClawWriter(BaseWriter):
             logger.info("OpenClaw 응답이 JSON이 아님, 원문 그대로 사용 (len=%d)", len(stdout))
             return stdout
 
-        # 경로 1: result.payloads[0].text (기본 형식)
+        # 경로 1: result.payloads[0].text (Gateway 정상 형식)
         payloads = data.get("result", {}).get("payloads", [])
         if payloads:
             text = payloads[0].get("text", "")
             if text:
                 return text
 
-        # 경로 2: result.text (단일 텍스트 응답)
+        # 경로 2: payloads[0].text (embedded fallback 형식)
+        payloads2 = data.get("payloads", [])
+        if payloads2:
+            text = payloads2[0].get("text", "")
+            if text:
+                logger.info("OpenClaw fallback: payloads[0].text 사용")
+                return text
+
+        # 경로 3: result.text (단일 텍스트 응답)
         result_text = data.get("result", {}).get("text", "")
         if result_text:
             logger.info("OpenClaw fallback: result.text 사용")
             return result_text
 
-        # 경로 3: output 키 (간이 형식)
+        # 경로 4: output 키 (간이 형식)
         output_text = data.get("output", "")
         if output_text:
             logger.info("OpenClaw fallback: output 키 사용")

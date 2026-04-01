@@ -513,6 +513,33 @@ def load_pending_review_file(filepath: str) -> dict:
 
 # ─── 메인 발행 함수 ──────────────────────────────────
 
+def publish_english(article: dict, creds: Credentials) -> bool:
+    """
+    Korean article → translate → publish to same blog with -en slug.
+    Non-blocking: logs errors but does not raise.
+    """
+    if article.get('lang') == 'en':
+        return False  # already English, skip
+    try:
+        from bots.translator_bot import translate_article
+        en_article = translate_article(article)
+        body_html, toc_html = prepare_body_html(en_article)
+        full_html = build_full_html(en_article, body_html, toc_html)
+        post_result = publish_to_blogger(en_article, full_html, creds)
+        post_url = post_result.get('url', '')
+        log_published(en_article, post_result)
+        logger.info(f"영문 발행 완료: {post_url}")
+        send_telegram(
+            f"🇺🇸 <b>[EN] 영문 발행 완료!</b>\n\n"
+            f"📌 <b>{en_article.get('title', '')}</b>\n"
+            f"URL: {post_url}"
+        )
+        return True
+    except Exception as e:
+        logger.error(f"영문 발행 실패: {e}")
+        return False
+
+
 def publish(article: dict) -> bool:
     """
     article: OpenClaw blog-writer가 출력한 파싱된 글 dict
@@ -573,6 +600,9 @@ def publish(article: dict) -> bool:
         f"URL: {post_url}"
     )
 
+    # 영문 버전 발행
+    publish_english(article, creds)
+
     return True
 
 
@@ -601,6 +631,7 @@ def approve_pending(filepath: str) -> bool:
             f"URL: {post_url}"
         )
         logger.info(f"수동 승인 발행 완료: {post_url}")
+        publish_english(article, creds)
         return True
     except Exception as e:
         logger.error(f"승인 발행 실패: {e}")
