@@ -52,16 +52,29 @@ def load_config(filename: str) -> dict:
 
 
 def load_published_titles() -> list[str]:
-    """발행 이력에서 제목 목록을 불러옴 (유사도 비교용)"""
+    """
+    중복 방지를 위해 이미 처리된 모든 글감/글 제목을 반환.
+    - data/published/ : 발행 완료된 글
+    - data/originals/ : 작성 완료, 발행 대기 중인 글
+    - data/topics/    : 수집 완료, 작성 대기 중인 글감
+    세 곳 모두 체크해서 어느 단계에 있는 주제도 재수집하지 않는다.
+    """
     titles = []
-    published_dir = DATA_DIR / 'published'
-    for f in published_dir.glob('*.json'):
-        try:
-            data = json.loads(f.read_text(encoding='utf-8'))
-            if 'title' in data:
-                titles.append(data['title'])
-        except Exception:
-            pass
+
+    def _collect(directory: Path, title_key: str = 'title'):
+        for f in directory.glob('*.json'):
+            try:
+                data = json.loads(f.read_text(encoding='utf-8'))
+                val = data.get(title_key) or data.get('topic')
+                if val:
+                    titles.append(val)
+            except Exception:
+                pass
+
+    _collect(DATA_DIR / 'published')           # 발행 완료
+    _collect(DATA_DIR / 'originals')           # 작성 완료 (발행 대기)
+    _collect(DATA_DIR / 'topics', 'topic')     # 수집 완료 (작성 대기)
+
     return titles
 
 
