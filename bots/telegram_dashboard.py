@@ -1047,6 +1047,7 @@ def create_app() -> Application:
             WAITING_CORNER: [CallbackQueryHandler(handle_corner_selected, pattern="^corner_")],
         },
         fallbacks=[CommandHandler("panel", cmd_panel)],
+        per_message=False,
     )
     scenario_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(handle_scenario_format, pattern="^scenario_")],
@@ -1054,6 +1055,7 @@ def create_app() -> Application:
             WAITING_SCENARIO_IDEA: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_scenario_idea)],
         },
         fallbacks=[CommandHandler("panel", cmd_panel)],
+        per_message=False,
     )
 
     # Commands
@@ -1065,16 +1067,19 @@ def create_app() -> Application:
         entry_points=[CallbackQueryHandler(handle_mf_image_start, pattern="^cmd_mf_image$")],
         states={WAITING_MF_IMAGE_PROMPT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mf_image_go)]},
         fallbacks=[CommandHandler("panel", cmd_panel)],
+        per_message=False,
     )
     mf_video_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(handle_mf_video_start, pattern="^cmd_mf_video$")],
         states={WAITING_MF_VIDEO_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mf_video_go)]},
         fallbacks=[CommandHandler("panel", cmd_panel)],
+        per_message=False,
     )
     mf_tts_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(handle_mf_tts_start, pattern="^cmd_mf_tts$")],
         states={WAITING_MF_TTS_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mf_tts_go)]},
         fallbacks=[CommandHandler("panel", cmd_panel)],
+        per_message=False,
     )
 
     # Conversations (register first)
