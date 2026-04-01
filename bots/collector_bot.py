@@ -226,7 +226,35 @@ def assign_corner(item: dict, topic_type: str) -> str:
         return '바이브리포트'
 
 
-def calculate_quality_score(item: dict, rules: dict) -> int:
+def load_boost_keywords() -> list[dict]:
+    """config/boost_keywords.json에서 boost 키워드 목록을 로드한다."""
+    boost_path = CONFIG_DIR / 'boost_keywords.json'
+    if not boost_path.exists():
+        return []
+    try:
+        data = json.loads(boost_path.read_text(encoding='utf-8'))
+        return data.get('keywords', [])
+    except Exception:
+        return []
+
+
+def calc_boost_score(text: str, boost_keywords: list[dict]) -> int:
+    """블로그 인기 통계 기반 boost 점수. 최대 20점."""
+    if not boost_keywords:
+        return 0
+    text_lower = text.lower()
+    score = 0
+    for kw_entry in boost_keywords:
+        kw = kw_entry.get('keyword', '').lower()
+        weight = kw_entry.get('weight', 0)
+        if kw and kw in text_lower:
+            score += weight
+            if score >= 20:
+                return 20
+    return min(score, 20)
+
+
+def calculate_quality_score(item: dict, rules: dict, boost_keywords: list[dict] | None = None) -> int:
     """0-100점 품질 점수 계산"""
     text = item.get('topic', '') + ' ' + item.get('description', '')
     source_url = item.get('source_url', '')
@@ -250,11 +278,17 @@ def calculate_quality_score(item: dict, rules: dict) -> int:
         trust_score, trust_level = calc_source_trust(source_url, rules)
     mono_score = calc_monetization(text, rules)
 
+    # 블로그 인기 통계 기반 boost
+    boost_score = calc_boost_score(text, boost_keywords or [])
+    if boost_score > 0:
+        item['boost_score'] = boost_score
+        item['boost_matched'] = True
+
     item['korean_relevance_score'] = kr_score
     item['source_trust_level'] = trust_level
     item['is_evergreen'] = is_evergreen(item.get('topic', ''), rules)
 
-    total = kr_score + fresh_score + search_score + trust_score + mono_score
+    total = kr_score + fresh_score + search_score + trust_score + mono_score + boost_score
     return min(total, 100)
 
 
@@ -448,6 +482,9 @@ def run():
     sources_cfg = load_config('sources.json')
     published_titles = load_published_titles()
     min_score = rules.get('min_score', 70)
+    boost_keywords = load_boost_keywords()
+    if boost_keywords:
+        logger.info(f"boost_keywords 로드: {len(boost_keywords)}개 키워드")
 
     # 수집
     all_items = []
@@ -473,8 +510,8 @@ def run():
             item['source_trust_level'] = trust_override
             item['_trust_score'] = trust_levels.get(trust_override, trust_levels['medium'])
 
-        # 품질 점수 계산
-        score = calculate_quality_score(item, rules)
+        # 품질 점수 계산 (boost_keywords 포함)
+        score = calculate_quality_score(item, rules, boost_keywords)
         item['quality_score'] = score
 
         # 폐기 규칙 검사

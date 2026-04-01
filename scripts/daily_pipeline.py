@@ -47,6 +47,20 @@ def send_telegram(text: str):
         logger.error(f"Telegram 전송 실패: {e}")
 
 
+def run_stats_update() -> dict:
+    """블로그 통계 기반 boost_keywords.json 갱신 (매주 월요일)."""
+    today = datetime.now()
+    if today.weekday() != 0:  # 0 = 월요일
+        return {'success': True, 'skipped': True, 'reason': '월요일만 실행'}
+    try:
+        from bots.stats_bot import run as stats_run
+        result = stats_run()
+        return {'success': True, 'skipped': False, **result}
+    except Exception as e:
+        logger.error(f"통계 갱신 실패: {e}")
+        return {'success': False, 'error': str(e)}
+
+
 def run_collect() -> dict:
     """글감 수집."""
     try:
@@ -95,6 +109,10 @@ def main():
     today = datetime.now().strftime('%Y-%m-%d %H:%M')
     logger.info(f"=== 일간 파이프라인 시작: {today} ===")
 
+    # 0. 통계 갱신 (매주 월요일)
+    stats_result = run_stats_update()
+    logger.info(f"통계: {stats_result}")
+
     # 1. 수집
     collect_result = run_collect()
     logger.info(f"수집: {collect_result}")
@@ -122,6 +140,12 @@ def main():
 
     if pending_count > 0:
         report_lines.append(f"⚠️ 수동 검토 대기: {pending_count}건")
+
+    if not stats_result.get('skipped'):
+        if stats_result.get('success'):
+            report_lines.append(f"📈 통계 갱신: boost 키워드 {stats_result.get('keywords', 0)}개")
+        else:
+            report_lines.append(f"⚠️ 통계 갱신 실패: {stats_result.get('error','')[:60]}")
 
     report_lines.append(f"🔑 토큰 만료: {token_expiry}")
     report_lines.append("")
