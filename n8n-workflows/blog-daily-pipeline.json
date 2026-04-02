@@ -1,0 +1,52 @@
+{
+  "id": "blogDailyPipeline",
+  "name": "Blog Daily Pipeline",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-daily",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python scripts/daily_pipeline.py"
+      },
+      "id": "run-daily-pipeline",
+      "name": "Run Daily Pipeline",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        560,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Daily Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "versionId": "c2f8c4b6-4df2-4f49-95ee-fd58537790dd",
+  "triggerCount": 0,
+  "tags": []
+}

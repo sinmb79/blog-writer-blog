@@ -41,7 +41,44 @@ RSS 피드·Hacker News·GitHub Trending에서 글감을 자동으로 수집하�
 
 ---
 
-## 빠른 시작 (이미 설정이 완료된 경우)
+## 설치 (3단계면 끝)
+
+### 사전 준비
+
+- [Node.js 20+](https://nodejs.org) 설치
+- [Python 3.11+](https://www.python.org/downloads/) 설치
+- `blog-writer-blog`용 `.env`, `token.json` 등 런타임 설정 준비
+
+### 설치 + n8n 실행
+
+```bash
+git clone https://github.com/sinmb79/blog-writer-blog.git
+cd blog-writer-blog
+
+# Linux / macOS
+chmod +x setup.sh
+./setup.sh
+
+# Windows (cmd.exe)
+setup.bat
+```
+
+브라우저에서 [http://localhost:5678](http://localhost:5678) 를 열면 끝입니다.
+워크플로우 목록에 아래 5개가 바로 보여야 합니다.
+
+- Blog Daily Pipeline
+- Blog Write Queue
+- Blog Publish Queue
+- Blog Weekly Report
+- Blog Monthly Reminder
+
+### 수동 앱 설정이 필요할 때
+
+👉 **[docs/BEGINNER_GUIDE_KO.md](docs/BEGINNER_GUIDE_KO.md)**
+
+Python 환경, Google OAuth, Blogger 게시 설정, 대시보드 수동 실행은 위 가이드를 참고하세요.
+
+### 기존 대시보드 직접 실행 방법
 
 ```powershell
 # 1. 가상환경 활성화
@@ -57,17 +94,6 @@ npm run dev
 # 4. 브라우저에서 접속
 # http://localhost:5173
 ```
-
-처음 설치하는 분은 아래 상세 가이드를 참고하세요.
-
----
-
-## 상세 설치 가이드
-
-👉 **[docs/BEGINNER_GUIDE_KO.md](docs/BEGINNER_GUIDE_KO.md)**
-
-Google OAuth 설정·설치·실행·트러블슈팅을 단계별로 자세하게 설명한 가이드입니다.
-처음 사용하는 분은 이 문서를 먼저 읽어보세요.
 
 ---
 
