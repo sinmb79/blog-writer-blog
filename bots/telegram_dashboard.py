@@ -51,7 +51,8 @@ ALLOWED_CHAT_IDS = {int(cid) for cid in os.getenv("TELEGRAM_CHAT_ID", "").split(
     WAITING_SCENARIO_IDEA, WAITING_SCENARIO_FORMAT,
     WAITING_MF_IMAGE_PROMPT, WAITING_MF_VIDEO_DESC, WAITING_MF_TTS_TEXT,
     WAITING_MF_INGEST_PATH,
-) = range(8)
+    WAITING_REWRITE_CORNER,
+) = range(9)
 
 MEDIAFORGE_DIR = Path(os.getenv("MEDIAFORGE_DIR", r"C:\Users\sinmb\workspace\mediaforge"))
 
@@ -194,7 +195,7 @@ async def handle_write_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton(f"Batch Write ({n} pending)", callback_data="cmd_write_pending")],
-        [InlineKeyboardButton("Direct Topic Input", callback_data="cmd_write_topic")],
+        [InlineKeyboardButton("내 글감으로 쓰기", callback_data="cmd_write_topic")],
         [InlineKeyboardButton("<< main", callback_data="cmd_back")],
     ])
     await query.edit_message_text("<b>Write</b>", reply_markup=kb, parse_mode="HTML")
@@ -227,19 +228,55 @@ def _run_write_pending() -> dict:
 async def handle_write_topic_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await query.edit_message_text("Type your topic:")
+    await query.edit_message_text(
+        "글감을 입력하세요.\n예: <code>애플 비전프로 국내 출시</code>\n\n코너는 자동으로 선택됩니다.",
+        parse_mode="HTML",
+    )
     return WAITING_TOPIC
 
 
 @authorized
 async def handle_topic_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["pending_topic"] = update.message.text
+    topic = update.message.text.strip()
+    context.user_data["pending_topic"] = topic
+
+    # 코너 자동 추정
+    corner = _auto_corner(topic)
+    context.user_data["last_corner"] = corner
+
+    msg = await update.message.reply_text(f"✍️ 작성 중...\n<b>{topic}</b> [{corner}]", parse_mode="HTML")
+    result = await asyncio.to_thread(_run_write_topic, topic, corner)
+
+    if result["success"]:
+        text = (
+            f"<b>완료</b>\n"
+            f"  제목: {result['title']}\n"
+            f"  코너: {corner}"
+        )
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("다른 코너로 다시 쓰기", callback_data="cmd_rewrite_corner")],
+            [InlineKeyboardButton("<< 메인", callback_data="cmd_back")],
+        ])
+    else:
+        text = f"실패: {result.get('error', '')[:200]}"
+        kb = _back()
+
+    await msg.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    return WAITING_REWRITE_CORNER
+
+
+@authorized
+async def handle_rewrite_corner_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """다른 코너로 다시 쓰기 버튼 → 코너 선택 메뉴"""
+    query = update.callback_query
+    await query.answer()
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton(c, callback_data=f"corner_{c}") for c in ["쉬운세상", "숨은보물"]],
         [InlineKeyboardButton(c, callback_data=f"corner_{c}") for c in ["바이브리포트", "팩트체크"]],
         [InlineKeyboardButton("한컷", callback_data="corner_한컷")],
+        [InlineKeyboardButton("<< 메인", callback_data="cmd_back")],
     ])
-    await update.message.reply_text("Select corner:", reply_markup=kb)
+    await query.edit_message_text("코너를 선택하세요:", reply_markup=kb)
     return WAITING_CORNER
 
 
@@ -248,15 +285,35 @@ async def handle_corner_selected(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
     corner = query.data.replace("corner_", "")
-    topic = context.user_data.pop("pending_topic", "")
-    msg = await query.edit_message_text(f"Writing...\n{topic} [{corner}]")
+    topic = context.user_data.get("pending_topic", "")
+    context.user_data["last_corner"] = corner
+    msg = await query.edit_message_text(f"✍️ 작성 중...\n<b>{topic}</b> [{corner}]", parse_mode="HTML")
     result = await asyncio.to_thread(_run_write_topic, topic, corner)
     if result["success"]:
-        text = f"<b>Write Done</b>\n  Title: {result['title']}\n  Corner: {corner}"
+        text = f"<b>완료</b>\n  제목: {result['title']}\n  코너: {corner}"
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("다른 코너로 다시 쓰기", callback_data="cmd_rewrite_corner")],
+            [InlineKeyboardButton("<< 메인", callback_data="cmd_back")],
+        ])
     else:
-        text = f"Write FAILED: {result.get('error', '')[:200]}"
-    await msg.edit_text(text, reply_markup=_back(), parse_mode="HTML")
-    return ConversationHandler.END
+        text = f"실패: {result.get('error', '')[:200]}"
+        kb = _back()
+    await msg.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    return WAITING_REWRITE_CORNER
+
+
+def _auto_corner(topic: str) -> str:
+    """토픽 키워드 기반 코너 자동 추정"""
+    t = topic.lower()
+    if any(k in t for k in ['트렌드', '시장', '전망', '분석', '현황', '동향', '업계', '성장', '하락', '리포트']):
+        return '바이브리포트'
+    if any(k in t for k in ['거짓', '오해', '논란', '사실은', '정말', '진짜', '과연', '실제로', '검증']):
+        return '팩트체크'
+    if any(k in t for k in ['도구', '툴', '앱', '서비스', '무료', '오픈소스', '플러그인', '생산성', '추천', '발견']):
+        return '숨은보물'
+    if any(k in t for k in ['한마디', '요약', '핵심', '결론', '한 줄', '한컷']):
+        return '한컷'
+    return '쉬운세상'
 
 
 def _run_write_topic(topic: str, corner: str) -> dict:
@@ -1044,6 +1101,10 @@ def create_app() -> Application:
         entry_points=[CallbackQueryHandler(handle_write_topic_start, pattern="^cmd_write_topic$")],
         states={
             WAITING_TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_topic_received)],
+            WAITING_REWRITE_CORNER: [
+                CallbackQueryHandler(handle_rewrite_corner_menu, pattern="^cmd_rewrite_corner$"),
+                CallbackQueryHandler(handle_corner_selected, pattern="^corner_"),
+            ],
             WAITING_CORNER: [CallbackQueryHandler(handle_corner_selected, pattern="^corner_")],
         },
         fallbacks=[CommandHandler("panel", cmd_panel)],
@@ -1095,6 +1156,7 @@ def create_app() -> Application:
         "cmd_collect": handle_collect,
         "cmd_write_menu": handle_write_menu,
         "cmd_write_pending": handle_write_pending,
+        "cmd_rewrite_corner": handle_rewrite_corner_menu,
         "cmd_publish_menu": handle_publish_menu,
         "cmd_publish_all": handle_publish_all,
         "cmd_reject_all": handle_reject_all,
