@@ -4,25 +4,49 @@
       "name": "GeekNews",
       "url": "https://feeds.feedburner.com/geeknews-feed",
       "category": "tech",
-      "trust_level": "high"
+      "trust_level": "high",
+      "audience": "developer",
+      "search_demand_score": 10
     },
     {
       "name": "ZDNet Korea",
       "url": "https://www.zdnet.co.kr/rss/rss.php",
       "category": "tech",
-      "trust_level": "high"
+      "trust_level": "high",
+      "audience": "general",
+      "search_demand_score": 14
     },
     {
       "name": "Yonhap IT",
       "url": "https://www.yna.co.kr/rss/it.xml",
       "category": "tech",
-      "trust_level": "high"
+      "trust_level": "high",
+      "audience": "general",
+      "search_demand_score": 14
     },
     {
       "name": "Bloter",
       "url": "https://www.bloter.net/feed",
       "category": "tech",
-      "trust_level": "high"
+      "trust_level": "high",
+      "audience": "general",
+      "search_demand_score": 12
+    },
+    {
+      "name": "요즘IT",
+      "url": "https://yozm.wishket.com/magazine/feed/",
+      "category": "tech",
+      "trust_level": "high",
+      "audience": "general",
+      "search_demand_score": 13
+    },
+    {
+      "name": "아웃스탠딩",
+      "url": "https://outstanding.kr/feed",
+      "category": "business",
+      "trust_level": "high",
+      "audience": "general",
+      "search_demand_score": 14
     }
   ],
   "x_keywords": [
@@ -32,7 +56,9 @@
     "Claude 사용",
     "ChatGPT 활용",
     "비개발자 앱",
-    "노코드 AI"
+    "노코드 AI",
+    "AI 창업",
+    "AI 생산성"
   ],
   "github_trending": {
     "url": "https://github.com/trending",

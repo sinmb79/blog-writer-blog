@@ -206,24 +206,63 @@ def apply_discard_rules(item: dict, rules: dict, published_titles: list[str]) ->
             if any(p in text for p in patterns):
                 return '클릭베이트성 주제'
 
+        elif rule_id == 'developer_only':
+            kws = rule.get('keywords', [])
+            if any(kw in text for kw in kws):
+                return '개발자 전용 주제 (비개발자 독자 무관)'
+
     return None
 
 
-def assign_corner(item: dict, topic_type: str) -> str:
-    """글감에 코너 배정"""
-    title = item.get('topic', '').lower()
+def assign_corner(item: dict, topic_type: str, rules: dict | None = None) -> str:
+    """글감에 코너 배정 — 키워드 매칭 기반"""
+    title = item.get('topic', '')
+    desc = item.get('description', '')
+    text = (title + ' ' + desc).lower()
     source = item.get('source', 'rss').lower()
 
+    corner_kws = {}
+    if rules:
+        corner_kws = rules.get('corner_keywords', {})
+
+    # 키워드 매칭 점수
+    scores = {corner: 0 for corner in ['쉬운세상', '숨은보물', '바이브리포트', '팩트체크', '한컷']}
+
+    for corner, kws in corner_kws.items():
+        for kw in kws:
+            if kw.lower() in text:
+                scores[corner] += 1
+
+    # 소스 기반 보정
+    if source in ['github', 'product_hunt']:
+        scores['숨은보물'] += 2
+    if source == 'google_trends':
+        scores['바이브리포트'] += 2
+
+    # 에버그린은 쉬운세상/숨은보물 우선
     if topic_type == 'evergreen':
-        if any(kw in title for kw in ['가이드', '방법', '사용법', '입문', '튜토리얼', '기초']):
-            return '쉬운세상'
-        return '숨은보물'
-    elif topic_type == 'trending':
+        scores['쉬운세상'] += 1
+        scores['숨은보물'] += 1
+
+    # 트렌드/시장 분석 키워드 있으면 바이브리포트
+    trend_kws = ['트렌드', '시장', '전망', '분석', '현황', '동향', '업계', '성장', '하락']
+    if any(kw in text for kw in trend_kws):
+        scores['바이브리포트'] += 2
+
+    # 검증/논란 키워드 있으면 팩트체크
+    fact_kws = ['거짓', '오해', '논란', '사실은', '정말', '진짜', '과연', '실제']
+    if any(kw in text for kw in fact_kws):
+        scores['팩트체크'] += 2
+
+    best = max(scores, key=lambda k: scores[k])
+    # 동점이면 기본 코너
+    if scores[best] == 0:
         if source in ['github', 'product_hunt']:
             return '숨은보물'
+        if topic_type == 'personality':
+            return '바이브리포트'
         return '쉬운세상'
-    else:  # personality
-        return '바이브리포트'
+    return best
 
 
 def load_boost_keywords() -> list[dict]:
@@ -254,6 +293,22 @@ def calc_boost_score(text: str, boost_keywords: list[dict]) -> int:
     return min(score, 20)
 
 
+def calc_non_developer_friendly(text: str, rules: dict) -> int:
+    """비개발자 독자 접근성 점수 (0~10)"""
+    cfg = rules.get('scoring', {}).get('non_developer_friendly', {})
+    max_score = cfg.get('max', 10)
+    friendly_kws = cfg.get('friendly_keywords', [])
+    dev_kws = cfg.get('dev_only_keywords', [])
+
+    text_lower = text.lower()
+    # 개발자 전용 키워드 있으면 0점
+    if any(kw.lower() in text_lower for kw in dev_kws):
+        return 0
+    # 비개발자 친화 키워드 매칭
+    matched = sum(1 for kw in friendly_kws if kw.lower() in text_lower)
+    return min(matched * 2, max_score)
+
+
 def calculate_quality_score(item: dict, rules: dict, boost_keywords: list[dict] | None = None) -> int:
     """0-100점 품질 점수 계산"""
     text = item.get('topic', '') + ' ' + item.get('description', '')
@@ -278,6 +333,10 @@ def calculate_quality_score(item: dict, rules: dict, boost_keywords: list[dict] 
         trust_score, trust_level = calc_source_trust(source_url, rules)
     mono_score = calc_monetization(text, rules)
 
+    # 비개발자 접근성 점수
+    ndf_score = calc_non_developer_friendly(text, rules)
+    item['non_developer_score'] = ndf_score
+
     # 블로그 인기 통계 기반 boost
     boost_score = calc_boost_score(text, boost_keywords or [])
     if boost_score > 0:
@@ -288,7 +347,7 @@ def calculate_quality_score(item: dict, rules: dict, boost_keywords: list[dict] 
     item['source_trust_level'] = trust_level
     item['is_evergreen'] = is_evergreen(item.get('topic', ''), rules)
 
-    total = kr_score + fresh_score + search_score + trust_score + mono_score + boost_score
+    total = kr_score + fresh_score + search_score + trust_score + mono_score + ndf_score + boost_score
     return min(total, 100)
 
 
@@ -418,6 +477,7 @@ def collect_rss_feeds(sources_cfg: dict) -> list[dict]:
     for feed_cfg in feeds:
         url = feed_cfg.get('url', '')
         trust = feed_cfg.get('trust_level', 'medium')
+        demand_score = feed_cfg.get('search_demand_score', 10)
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries[:10]:
@@ -431,7 +491,7 @@ def collect_rss_feeds(sources_cfg: dict) -> list[dict]:
                     'source_name': feed_cfg.get('name', ''),
                     'source_url': entry.get('link', ''),
                     'published_at': pub_at,
-                    'search_demand_score': 8,
+                    'search_demand_score': demand_score,
                     'topic_type': 'trending',
                     '_trust_override': trust,
                 })
@@ -530,7 +590,7 @@ def run():
 
         # 코너 배정
         topic_type = item.get('topic_type', 'trending')
-        corner = assign_corner(item, topic_type)
+        corner = assign_corner(item, topic_type, rules)
         item['corner'] = corner
 
         # 쿠팡 키워드 추출
