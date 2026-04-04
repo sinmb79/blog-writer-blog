@@ -52,6 +52,9 @@ SCOPES = [
     'https://www.googleapis.com/auth/webmasters',
 ]
 
+wp_publisher_bot = None
+naver_publisher_bot = None
+
 
 def load_config(filename: str) -> dict:
     with open(CONFIG_DIR / filename, 'r', encoding='utf-8') as f:
@@ -511,6 +514,75 @@ def load_pending_review_file(filepath: str) -> dict:
         return json.load(f)
 
 
+def _resolve_publish_targets(platform: str) -> list[str]:
+    normalized = (platform or 'blogger').strip().lower()
+    mapping = {
+        'blogger': ['blogger'],
+        'wordpress': ['wordpress'],
+        'both': ['blogger', 'wordpress'],
+        'naver': ['naver'],
+        'all': ['blogger', 'wordpress', 'naver'],
+    }
+    return mapping.get(normalized, ['blogger'])
+
+
+def _load_platform_publishers() -> None:
+    global wp_publisher_bot, naver_publisher_bot
+
+    if wp_publisher_bot is None:
+        from bots import wp_publisher_bot as wp_publisher_module
+
+        wp_publisher_bot = wp_publisher_module
+
+    if naver_publisher_bot is None:
+        from bots import naver_publisher_bot as naver_publisher_module
+
+        naver_publisher_bot = naver_publisher_module
+
+
+def _prepare_full_html(article: dict) -> str:
+    if article.get('_html_content'):
+        return article['_html_content']
+
+    body_html, toc_html = prepare_body_html(article)
+    return build_full_html(article, body_html, toc_html)
+
+
+def _publish_to_blogger_primary(article: dict, html_content: str, publish_english_version: bool = True) -> bool:
+    try:
+        creds = get_google_credentials()
+    except RuntimeError as e:
+        logger.error(str(e))
+        return False
+
+    try:
+        post_result = publish_to_blogger(article, html_content, creds)
+        post_url = post_result.get('url', '')
+        logger.info(f"발행 완료: {post_url}")
+    except Exception as e:
+        logger.error(f"Blogger 발행 실패: {e}")
+        return False
+
+    if post_url:
+        submit_to_search_console(post_url, creds)
+
+    log_published(article, post_result)
+
+    title = article.get('title', '')
+    corner = article.get('corner', '')
+    send_telegram(
+        f"✅ <b>발행 완료!</b>\n\n"
+        f"📌 <b>{title}</b>\n"
+        f"코너: {corner}\n"
+        f"URL: {post_url}"
+    )
+
+    if publish_english_version:
+        publish_english(article, creds)
+
+    return True
+
+
 # ─── 메인 발행 함수 ──────────────────────────────────
 
 def publish_english(article: dict, creds: Credentials) -> bool:
@@ -540,7 +612,7 @@ def publish_english(article: dict, creds: Credentials) -> bool:
         return False
 
 
-def publish(article: dict) -> bool:
+def publish(article: dict, platform: str = 'blogger', skip_safety: bool = False) -> bool:
     """
     article: OpenClaw blog-writer가 출력한 파싱된 글 dict
     {
@@ -549,89 +621,63 @@ def publish(article: dict) -> bool:
     }
     Returns: True(발행 성공) / False(수동 검토 대기)
     """
-    logger.info(f"발행 시도: {article.get('title', '')}")
-    safety_cfg = load_config('safety_keywords.json')
+    normalized_platform = (article.get('_publish_platform') or platform or 'blogger').strip().lower()
+    logger.info(f"발행 시도: {article.get('title', '')} [{normalized_platform}]")
 
-    # 안전장치 검사
-    needs_review, review_reason = check_safety(article, safety_cfg)
-    if needs_review:
-        logger.warning(f"수동 검토 대기: {review_reason}")
-        save_pending_review(article, review_reason)
-        send_pending_review_alert(article, review_reason)
-        return False
+    if not skip_safety:
+        safety_cfg = load_config('safety_keywords.json')
+        needs_review, review_reason = check_safety(article, safety_cfg)
+        if needs_review:
+            logger.warning(f"수동 검토 대기: {review_reason}")
+            queued_article = {**article, '_publish_platform': normalized_platform}
+            save_pending_review(queued_article, review_reason)
+            send_pending_review_alert(queued_article, review_reason)
+            return False
 
-    # writer_bot HTML → 그대로 사용, 마크다운이면 변환
-    if article.get('_html_content'):
-        full_html = article['_html_content']
-    else:
-        body_html, toc_html = prepare_body_html(article)
-        full_html = build_full_html(article, body_html, toc_html)
+    routed_article = dict(article)
+    routed_article['_publish_platform'] = normalized_platform
+    routed_article.setdefault('_html_content', _prepare_full_html(routed_article))
 
-    # Google 인증
-    try:
-        creds = get_google_credentials()
-    except RuntimeError as e:
-        logger.error(str(e))
-        return False
+    results: list[bool] = []
+    for target in _resolve_publish_targets(normalized_platform):
+        if target == 'blogger':
+            results.append(
+                _publish_to_blogger_primary(
+                    routed_article,
+                    routed_article['_html_content'],
+                    publish_english_version=(normalized_platform == 'blogger'),
+                )
+            )
+            continue
 
-    # Blogger 발행
-    try:
-        post_result = publish_to_blogger(article, full_html, creds)
-        post_url = post_result.get('url', '')
-        logger.info(f"발행 완료: {post_url}")
-    except Exception as e:
-        logger.error(f"Blogger 발행 실패: {e}")
-        return False
+        _load_platform_publishers()
+        if target == 'wordpress':
+            results.append(bool(wp_publisher_bot.publish(routed_article)))
+        elif target == 'naver':
+            results.append(bool(naver_publisher_bot.publish(routed_article)))
 
-    # Search Console 제출
-    if post_url:
-        submit_to_search_console(post_url, creds)
-
-    # 발행 이력 저장
-    log_published(article, post_result)
-
-    # Telegram 알림
-    title = article.get('title', '')
-    corner = article.get('corner', '')
-    send_telegram(
-        f"✅ <b>발행 완료!</b>\n\n"
-        f"📌 <b>{title}</b>\n"
-        f"코너: {corner}\n"
-        f"URL: {post_url}"
-    )
-
-    # 영문 버전 발행
-    publish_english(article, creds)
-
-    return True
+    return bool(results) and all(results)
 
 
 def approve_pending(filepath: str) -> bool:
     """수동 검토 대기 글 승인 후 발행"""
     try:
         article = load_pending_review_file(filepath)
+        platform = article.pop('_publish_platform', 'blogger')
         article.pop('pending_reason', None)
         article.pop('created_at', None)
 
-        # 안전장치 우회하여 강제 발행
-        body_html, toc_html = prepare_body_html(article)
-        full_html = build_full_html(article, body_html, toc_html)
+        success = publish(article, platform=platform, skip_safety=True)
+        if not success:
+            return False
 
-        creds = get_google_credentials()
-        post_result = publish_to_blogger(article, full_html, creds)
-        post_url = post_result.get('url', '')
-        log_published(article, post_result)
-
-        # 대기 파일 삭제
         Path(filepath).unlink(missing_ok=True)
-
         send_telegram(
             f"✅ <b>[수동 승인] 발행 완료!</b>\n\n"
             f"📌 {article.get('title', '')}\n"
-            f"URL: {post_url}"
+            f"Platform: {platform}"
         )
-        logger.info(f"수동 승인 발행 완료: {post_url}")
-        publish_english(article, creds)
+        logger.info(f"수동 승인 발행 완료: {filepath} [{platform}]")
         return True
     except Exception as e:
         logger.error(f"승인 발행 실패: {e}")

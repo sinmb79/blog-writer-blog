@@ -8,6 +8,7 @@ service_account*.json
 
 venv/
 .pytest_cache/
+.pytest_tmp/
 __pycache__/
 *.pyc
 *.pyo
@@ -33,6 +34,8 @@ data/discarded/*
 !data/discarded/.gitkeep
 data/scenarios/*
 !data/scenarios/.gitkeep
+data/images/*
+!data/images/.gitkeep
 
 dashboard/frontend/node_modules/
 dashboard/frontend/dist/

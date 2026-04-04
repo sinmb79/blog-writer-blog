@@ -1,8 +1,10 @@
 # Blog Writer Blog
 
-**블로그 글감 수집부터 Blogger 자동 게시까지 — 블로그 운영 자동화 도구**
+**블로그 글감 수집부터 Blogger·WordPress·Naver 자동 게시까지 — 블로그 운영 자동화 도구**
 
-RSS 피드·Hacker News·GitHub Trending에서 글감을 자동으로 수집하고, AI로 블로그 초안을 작성한 다음, 내가 검수·승인하면 Blogger에 자동으로 게시해 주는 도구입니다.
+영문으로 보고 싶다면 [English Notes](./docs/README.en.md)를 열어보세요.
+
+RSS 피드·Hacker News·GitHub Trending에서 글감을 자동으로 수집하고, AI로 블로그 초안을 작성한 다음, 내가 검수·승인하면 Blogger·WordPress·Naver에 자동으로 게시해 주는 도구입니다.
 
 ---
 
@@ -23,7 +25,7 @@ RSS 피드·Hacker News·GitHub Trending에서 글감을 자동으로 수집하�
       ↓
 ④ 승인/거절   대시보드나 CLI에서 OK 또는 반려
       ↓
-⑤ Blogger 게시  승인된 글이 내 Blogger 블로그에 자동 게시
+⑤ 멀티 플랫폼 게시  승인된 글이 Blogger·WordPress·Naver에 자동 게시
 ```
 
 ---
@@ -35,7 +37,7 @@ RSS 피드·Hacker News·GitHub Trending에서 글감을 자동으로 수집하�
 | 글감 수집 | 쇼츠 영상 제작 |
 | AI 블로그 초안 작성 | 소설 작성 |
 | 검수 승인·거절 워크플로 | SNS 배포 |
-| Blogger 자동 게시 | 어시스트 모드 |
+| Blogger·WordPress·Naver 자동 게시 | 어시스트 모드 |
 | 웹 대시보드 | |
 | CLI 도구 | |
 
@@ -48,6 +50,7 @@ RSS 피드·Hacker News·GitHub Trending에서 글감을 자동으로 수집하�
 - [Node.js 20+](https://nodejs.org) 설치
 - [Python 3.11+](https://www.python.org/downloads/) 설치
 - `blog-writer-blog`용 `.env`, `token.json` 등 런타임 설정 준비
+- Naver 무인 발행을 쓰려면 `python -m playwright install chromium` 실행
 
 ### 설치 + n8n 실행
 
@@ -71,6 +74,31 @@ setup.bat
 - Blog Publish Queue
 - Blog Weekly Report
 - Blog Monthly Reminder
+
+### 퍼블리싱 플랫폼 설정
+
+기본 발행 대상은 `Blogger`입니다. WordPress와 Naver를 쓰려면 `.env.example`의 아래 항목을 채워 넣으면 됩니다.
+
+The default publishing target is `Blogger`. To use WordPress or Naver, fill in the matching keys from `.env.example`.
+
+```env
+WP_URL=https://your-site.com
+WP_USERNAME=your_username
+WP_APP_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx
+
+NAVER_BLOG_ENABLED=false
+NAVER_BLOG_URL=https://blog.naver.com/your_blog_id
+NAVER_BLOG_NEW_POST_URL=https://blog.naver.com/PostWriteForm.naver
+NAVER_CHROME_PROFILE_DIR=C:/Users/your-user/key/naver-blog-chrome-profile
+NAVER_PUBLISH_RETRY_COUNT=3
+
+BANANAPRO_API_KEY=
+OPENAI_API_KEY=
+```
+
+Naver 무인 발행은 전용 계정과 전용 Chrome 프로필을 한 번 로그인해 둔 뒤 재사용하는 방식입니다. 대표 이미지는 `기존 image_path -> BananaPro -> OpenAI` 순서로 준비됩니다.
+
+Naver unattended publishing reuses a dedicated logged-in Chrome profile. The representative image fallback order is `existing image_path -> BananaPro -> OpenAI`.
 
 ### 수동 앱 설정이 필요할 때
 
@@ -103,11 +131,15 @@ npm run dev
 bw collect                                  # 글감 수집
 bw write                                    # AI로 초안 작성
 bw write "주제 직접 입력"                    # 특정 주제로 바로 작성
-bw write --publish-now                      # 작성 후 즉시 게시
+bw write --publish-now --platform wordpress # 작성 후 지정 플랫폼에 즉시 게시
 bw review list                              # 검수 대기 목록
-bw review approve data\pending_review\파일  # 승인 → Blogger 게시
+bw review approve data\pending_review\파일  # 승인 → 원래 요청한 플랫폼으로 게시
 bw review reject  data\pending_review\파일  # 반려
-bw publish                                  # 초안 전체 게시
+bw publish --platform blogger               # Blogger 발행 (기본값)
+bw publish --platform wordpress             # WordPress 발행
+bw publish --platform both                  # Blogger + WordPress 동시 발행
+bw publish --platform naver                 # Naver 무인 발행
+bw publish --platform all                   # Blogger + WordPress + Naver 동시 발행
 bw status                                   # 현재 상태 한눈에 보기
 bw doctor                                   # 설정 이상 여부 진단
 ```

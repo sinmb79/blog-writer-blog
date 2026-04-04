@@ -42,7 +42,14 @@ def collect():
 @app.command()
 @click.argument("topic", required=False)
 @click.option("--publish-now", is_flag=True, help="Publish the generated article immediately.")
-def write(topic: str | None, publish_now: bool):
+@click.option(
+    "--platform",
+    type=click.Choice(["blogger", "wordpress", "both", "naver", "all"], case_sensitive=False),
+    default="blogger",
+    show_default=True,
+    help="Publishing target(s) when --publish-now is used.",
+)
+def write(topic: str | None, publish_now: bool, platform: str):
     """Generate articles from a topic or from queued items."""
     from bots.publisher_bot import publish
     from bots.writer_bot import run_from_topic, run_pending
@@ -51,7 +58,7 @@ def write(topic: str | None, publish_now: bool):
         article = run_from_topic(topic)
         console.print(f"[green]Draft created[/green] {article.get('title', topic)}")
         if publish_now:
-            published = publish(article)
+            published = publish(article, platform=platform)
             console.print("[green]Published[/green]" if published else "[yellow]Queued for review[/yellow]")
         return
 
@@ -62,8 +69,15 @@ def write(topic: str | None, publish_now: bool):
 
 @app.command()
 @click.option("--file", "file_path", type=click.Path(exists=True, path_type=Path), help="Publish one article JSON file.")
-def publish(file_path: Path | None):
-    """Publish article drafts to Blogger."""
+@click.option(
+    "--platform",
+    type=click.Choice(["blogger", "wordpress", "both", "naver", "all"], case_sensitive=False),
+    default="blogger",
+    show_default=True,
+    help="Publishing target(s).",
+)
+def publish(file_path: Path | None, platform: str):
+    """Publish article drafts to the selected platform(s)."""
     from bots.publisher_bot import publish as publish_article
 
     draft_files = [file_path] if file_path else _json_files(DATA_DIR / "originals")
@@ -74,7 +88,7 @@ def publish(file_path: Path | None):
     published = 0
     for draft in draft_files:
         article = json.loads(draft.read_text(encoding="utf-8"))
-        if publish_article(article):
+        if publish_article(article, platform=platform):
             published += 1
 
     console.print(f"[green]Published[/green] {published} article(s)")

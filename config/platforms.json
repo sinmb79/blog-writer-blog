@@ -1,0 +1,5 @@
+{
+  "blogger": { "enabled": true },
+  "wordpress": { "enabled": false, "url": "" },
+  "naver": { "enabled": false, "blog_url": "", "new_post_url": "" }
+}
