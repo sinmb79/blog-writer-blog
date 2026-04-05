@@ -16,12 +16,17 @@
     },
     {
       "parameters": {
-        "command": "python -m blogwriter.cli write"
+        "method": "POST",
+        "url": "http://host.docker.internal:8080/api/automation/write-queue",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ limit: 3 }) }}"
       },
       "id": "run-write-queue",
       "name": "Generate Drafts",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         560,
         300

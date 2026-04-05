@@ -16,12 +16,13 @@
     },
     {
       "parameters": {
-        "command": "python scripts/monthly_reminder.py"
+        "method": "POST",
+        "url": "http://host.docker.internal:8080/api/automation/monthly-reminder"
       },
       "id": "run-monthly-reminder",
       "name": "Run Monthly Reminder",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         560,
         300
