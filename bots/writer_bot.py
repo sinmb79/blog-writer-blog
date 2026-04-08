@@ -177,6 +177,14 @@ def write_article(topic_data: dict, output_path: Path) -> dict:
         encoding='utf-8',
     )
     logger.info(f"원고 저장 완료: {output_path.name}")
+
+    # Send email notification
+    try:
+        from bots.email_notify import send_article_email
+        send_article_email(article)
+    except Exception as e:
+        logger.warning(f"이메일 발송 실패 (무시): {e}")
+
     return article
 
 
