@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from dashboard.backend import api_connections, api_content, api_logs, api_overview, api_settings
+from dashboard.backend import api_automation, api_connections, api_content, api_logs, api_overview, api_settings
 
 
 app = FastAPI(title="Blog Writer Blog Dashboard", version="1.0.0")
@@ -32,6 +32,7 @@ app.add_middleware(
 
 app.include_router(api_overview.router, prefix="/api")
 app.include_router(api_content.router, prefix="/api")
+app.include_router(api_automation.router, prefix="/api")
 app.include_router(api_settings.router, prefix="/api")
 app.include_router(api_connections.router, prefix="/api")
 app.include_router(api_logs.router, prefix="/api")

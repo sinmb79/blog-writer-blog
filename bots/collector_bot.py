@@ -20,6 +20,9 @@ from bs4 import BeautifulSoup
 BASE_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE_DIR))
 from bots.blog_config import CONFIG_DIR, DATA_DIR, LOG_DIR, load_settings
+from bots.collectors import youtube as yt_collector
+from bots.collectors import reddit as reddit_collector
+from bots.collectors import google_trends as gtrends_collector
 
 load_settings()
 
@@ -548,7 +551,10 @@ def run():
 
     # 수집
     all_items = []
-    all_items += collect_google_trends()
+    all_items += collect_google_trends()         # pytrends (KR, 기존)
+    all_items += gtrends_collector.collect()     # Google Trends RSS (KR+US, 신규)
+    all_items += yt_collector.collect()          # YouTube Trending (KR+US, 신규)
+    all_items += reddit_collector.collect()      # Reddit Hot (기술/AI 서브레딧, 신규)
     all_items += collect_github_trending(sources_cfg)
     all_items += collect_product_hunt(sources_cfg)
     all_items += collect_hacker_news(sources_cfg)
